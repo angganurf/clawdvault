@@ -1,0 +1,149 @@
+{
+  "version": "0.1.0",
+  "name": "clawdvault",
+  "instructions": [
+    {
+      "name": "initialize",
+      "accounts": [
+        { "name": "authority", "isMut": true, "isSigner": true },
+        { "name": "feeRecipient", "isMut": false, "isSigner": false },
+        { "name": "config", "isMut": true, "isSigner": false },
+        { "name": "systemProgram", "isMut": false, "isSigner": false }
+      ],
+      "args": []
+    },
+    {
+      "name": "createToken",
+      "accounts": [
+        { "name": "creator", "isMut": true, "isSigner": true },
+        { "name": "config", "isMut": true, "isSigner": false },
+        { "name": "mint", "isMut": true, "isSigner": true },
+        { "name": "bondingCurve", "isMut": true, "isSigner": false },
+        { "name": "solVault", "isMut": true, "isSigner": false },
+        { "name": "tokenVault", "isMut": true, "isSigner": false },
+        { "name": "tokenProgram", "isMut": false, "isSigner": false },
+        { "name": "associatedTokenProgram", "isMut": false, "isSigner": false },
+        { "name": "systemProgram", "isMut": false, "isSigner": false },
+        { "name": "rent", "isMut": false, "isSigner": false }
+      ],
+      "args": [
+        { "name": "name", "type": "string" },
+        { "name": "symbol", "type": "string" },
+        { "name": "uri", "type": "string" }
+      ]
+    },
+    {
+      "name": "buy",
+      "accounts": [
+        { "name": "buyer", "isMut": true, "isSigner": true },
+        { "name": "bondingCurve", "isMut": true, "isSigner": false },
+        { "name": "config", "isMut": false, "isSigner": false },
+        { "name": "mint", "isMut": false, "isSigner": false },
+        { "name": "solVault", "isMut": true, "isSigner": false },
+        { "name": "tokenVault", "isMut": true, "isSigner": false },
+        { "name": "buyerTokenAccount", "isMut": true, "isSigner": false },
+        { "name": "feeRecipient", "isMut": true, "isSigner": false },
+        { "name": "creator", "isMut": true, "isSigner": false },
+        { "name": "tokenProgram", "isMut": false, "isSigner": false },
+        { "name": "associatedTokenProgram", "isMut": false, "isSigner": false },
+        { "name": "systemProgram", "isMut": false, "isSigner": false }
+      ],
+      "args": [
+        { "name": "solAmount", "type": "u64" },
+        { "name": "minTokensOut", "type": "u64" }
+      ]
+    },
+    {
+      "name": "sell",
+      "accounts": [
+        { "name": "seller", "isMut": true, "isSigner": true },
+        { "name": "bondingCurve", "isMut": true, "isSigner": false },
+        { "name": "config", "isMut": false, "isSigner": false },
+        { "name": "mint", "isMut": false, "isSigner": false },
+        { "name": "solVault", "isMut": true, "isSigner": false },
+        { "name": "tokenVault", "isMut": true, "isSigner": false },
+        { "name": "sellerTokenAccount", "isMut": true, "isSigner": false },
+        { "name": "feeRecipient", "isMut": true, "isSigner": false },
+        { "name": "creator", "isMut": true, "isSigner": false },
+        { "name": "tokenProgram", "isMut": false, "isSigner": false },
+        { "name": "systemProgram", "isMut": false, "isSigner": false }
+      ],
+      "args": [
+        { "name": "tokenAmount", "type": "u64" },
+        { "name": "minSolOut", "type": "u64" }
+      ]
+    },
+    {
+      "name": "graduate",
+      "accounts": [
+        { "name": "authority", "isMut": true, "isSigner": true },
+        { "name": "bondingCurve", "isMut": true, "isSigner": false }
+      ],
+      "args": []
+    }
+  ],
+  "accounts": [
+    {
+      "name": "Config",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          { "name": "authority", "type": "publicKey" },
+          { "name": "feeRecipient", "type": "publicKey" },
+          { "name": "totalTokensCreated", "type": "u64" },
+          { "name": "totalVolumeSol", "type": "u64" },
+          { "name": "bump", "type": "u8" }
+        ]
+      }
+    },
+    {
+      "name": "BondingCurve",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          { "name": "creator", "type": "publicKey" },
+          { "name": "mint", "type": "publicKey" },
+          { "name": "virtualSolReserves", "type": "u64" },
+          { "name": "virtualTokenReserves", "type": "u64" },
+          { "name": "realSolReserves", "type": "u64" },
+          { "name": "realTokenReserves", "type": "u64" },
+          { "name": "tokenTotalSupply", "type": "u64" },
+          { "name": "graduated", "type": "bool" },
+          { "name": "createdAt", "type": "i64" },
+          { "name": "bump", "type": "u8" },
+          { "name": "solVaultBump", "type": "u8" },
+          { "name": "tokenVaultBump", "type": "u8" }
+        ]
+      }
+    }
+  ],
+  "events": [
+    {
+      "name": "TradeEvent",
+      "fields": [
+        { "name": "mint", "type": "publicKey", "index": false },
+        { "name": "trader", "type": "publicKey", "index": false },
+        { "name": "isBuy", "type": "bool", "index": false },
+        { "name": "solAmount", "type": "u64", "index": false },
+        { "name": "tokenAmount", "type": "u64", "index": false },
+        { "name": "protocolFee", "type": "u64", "index": false },
+        { "name": "creatorFee", "type": "u64", "index": false },
+        { "name": "virtualSolReserves", "type": "u64", "index": false },
+        { "name": "virtualTokenReserves", "type": "u64", "index": false },
+        { "name": "timestamp", "type": "i64", "index": false }
+      ]
+    }
+  ],
+  "errors": [
+    { "code": 6000, "name": "MathOverflow", "msg": "Math overflow" },
+    { "code": 6001, "name": "SlippageExceeded", "msg": "Slippage tolerance exceeded" },
+    { "code": 6002, "name": "AlreadyGraduated", "msg": "Token has already graduated to Raydium" },
+    { "code": 6003, "name": "NotGraduated", "msg": "Token has not graduated yet" },
+    { "code": 6004, "name": "InsufficientLiquidity", "msg": "Insufficient liquidity in curve" },
+    { "code": 6005, "name": "ZeroAmount", "msg": "Amount must be greater than zero" },
+    { "code": 6006, "name": "NameTooLong", "msg": "Token name too long (max 32 chars)" },
+    { "code": 6007, "name": "SymbolTooLong", "msg": "Token symbol too long (max 10 chars)" },
+    { "code": 6008, "name": "UriTooLong", "msg": "Token URI too long (max 200 chars)" },
+    { "code": 6009, "name": "Unauthorized", "msg": "Unauthorized" }
+  ]
+}
