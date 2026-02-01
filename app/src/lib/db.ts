@@ -220,7 +220,8 @@ export async function executeTrade(
   mint: string,
   type: 'buy' | 'sell',
   amount: number,
-  trader: string
+  trader: string,
+  signature?: string
 ): Promise<{ token: Token; trade: Trade; fees: { protocol: number; creator: number } } | null> {
   // Get current token state
   const token = await db().token.findUnique({
@@ -286,7 +287,7 @@ export async function executeTrade(
           totalFee: fees.total,
           protocolFee: fees.protocol,
           creatorFee: fees.creator,
-          signature: `mock_${Date.now()}`,
+          signature: signature || `mock_${Date.now()}`,
         },
       });
       
@@ -376,7 +377,7 @@ export async function executeTrade(
           totalFee: fees.total,
           protocolFee: fees.protocol,
           creatorFee: fees.creator,
-          signature: `mock_${Date.now()}`,
+          signature: signature || `mock_${Date.now()}`,
         },
       });
       

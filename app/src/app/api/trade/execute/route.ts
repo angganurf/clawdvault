@@ -85,7 +85,8 @@ export async function POST(request: Request) {
       body.mint,
       body.type,
       body.type === 'buy' ? solAmount : tokenAmount,
-      body.wallet
+      body.wallet,
+      result.signature
     );
 
     if (!dbResult) {
