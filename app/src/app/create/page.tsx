@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef, useCallback } from 'react';
 import Link from 'next/link';
 import { CreateTokenRequest, CreateTokenResponse } from '@/lib/types';
 
@@ -9,9 +9,94 @@ export default function CreatePage() {
   const [symbol, setSymbol] = useState('');
   const [description, setDescription] = useState('');
   const [image, setImage] = useState('');
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [uploading, setUploading] = useState(false);
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<CreateTokenResponse | null>(null);
   const [error, setError] = useState('');
+  const [dragActive, setDragActive] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleFileUpload = async (file: File) => {
+    if (!file.type.startsWith('image/')) {
+      setError('Please upload an image file');
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      setError('Image must be under 5MB');
+      return;
+    }
+
+    // Show preview immediately
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      setImagePreview(e.target?.result as string);
+    };
+    reader.readAsDataURL(file);
+
+    // Upload to server
+    setUploading(true);
+    setError('');
+
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+
+      const res = await fetch('/api/upload', {
+        method: 'POST',
+        body: formData,
+      });
+
+      const data = await res.json();
+
+      if (data.success) {
+        setImage(data.url);
+      } else {
+        setError(data.error || 'Upload failed');
+        setImagePreview(null);
+      }
+    } catch (err) {
+      setError('Upload failed');
+      setImagePreview(null);
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleDrag = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.type === 'dragenter' || e.type === 'dragover') {
+      setDragActive(true);
+    } else if (e.type === 'dragleave') {
+      setDragActive(false);
+    }
+  }, []);
+
+  const handleDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragActive(false);
+
+    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+      handleFileUpload(e.dataTransfer.files[0]);
+    }
+  }, []);
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      handleFileUpload(e.target.files[0]);
+    }
+  };
+
+  const removeImage = () => {
+    setImage('');
+    setImagePreview(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -99,6 +184,7 @@ export default function CreatePage() {
                     setSymbol('');
                     setDescription('');
                     setImage('');
+                    setImagePreview(null);
                   }}
                   className="border border-gray-600 hover:border-orange-500 text-white px-6 py-2 rounded-lg transition"
                 >
@@ -159,17 +245,77 @@ export default function CreatePage() {
                 />
               </div>
 
+              {/* Image Upload */}
               <div>
                 <label className="block text-white font-medium mb-2">
-                  Image URL
+                  Token Image
                 </label>
+                
+                {imagePreview || image ? (
+                  <div className="relative w-32 h-32 rounded-xl overflow-hidden bg-gray-800 border border-gray-700">
+                    <img 
+                      src={imagePreview || image} 
+                      alt="Token preview" 
+                      className="w-full h-full object-cover"
+                    />
+                    {uploading && (
+                      <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
+                        <div className="animate-spin w-8 h-8 border-2 border-orange-500 border-t-transparent rounded-full" />
+                      </div>
+                    )}
+                    {!uploading && (
+                      <button
+                        type="button"
+                        onClick={removeImage}
+                        className="absolute top-2 right-2 bg-red-500 hover:bg-red-400 text-white w-6 h-6 rounded-full flex items-center justify-center text-sm transition"
+                      >
+                        ✕
+                      </button>
+                    )}
+                  </div>
+                ) : (
+                  <div
+                    onDragEnter={handleDrag}
+                    onDragLeave={handleDrag}
+                    onDragOver={handleDrag}
+                    onDrop={handleDrop}
+                    onClick={() => fileInputRef.current?.click()}
+                    className={`border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition ${
+                      dragActive 
+                        ? 'border-orange-500 bg-orange-500/10' 
+                        : 'border-gray-700 hover:border-gray-600 bg-gray-800/50'
+                    }`}
+                  >
+                    <div className="text-4xl mb-2">🖼️</div>
+                    <div className="text-gray-400 mb-1">
+                      {dragActive ? 'Drop image here' : 'Drag & drop or click to upload'}
+                    </div>
+                    <div className="text-gray-500 text-sm">PNG, JPG, GIF, WebP (max 5MB)</div>
+                  </div>
+                )}
+                
                 <input
-                  type="url"
-                  value={image}
-                  onChange={(e) => setImage(e.target.value)}
-                  placeholder="https://..."
-                  className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:border-orange-500 focus:outline-none"
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  onChange={handleFileChange}
+                  className="hidden"
                 />
+
+                {/* Optional: manual URL input */}
+                <div className="mt-3">
+                  <div className="text-gray-500 text-sm mb-2">Or paste image URL:</div>
+                  <input
+                    type="url"
+                    value={image}
+                    onChange={(e) => {
+                      setImage(e.target.value);
+                      setImagePreview(e.target.value);
+                    }}
+                    placeholder="https://..."
+                    className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-2 text-white placeholder-gray-500 focus:border-orange-500 focus:outline-none text-sm"
+                  />
+                </div>
               </div>
 
               <div className="bg-gray-800/50 rounded-lg p-4 text-sm">
@@ -184,10 +330,10 @@ export default function CreatePage() {
 
               <button
                 type="submit"
-                disabled={loading || !name || !symbol}
+                disabled={loading || uploading || !name || !symbol}
                 className="w-full bg-gradient-to-r from-orange-600 to-red-500 hover:from-orange-500 hover:to-red-400 disabled:opacity-50 disabled:cursor-not-allowed text-white py-4 rounded-xl font-semibold transition"
               >
-                {loading ? 'Creating...' : 'Launch Token 🚀'}
+                {loading ? 'Creating...' : uploading ? 'Uploading image...' : 'Launch Token 🚀'}
               </button>
             </form>
           )}
