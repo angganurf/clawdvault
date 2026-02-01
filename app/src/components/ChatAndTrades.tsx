@@ -384,20 +384,21 @@ export default function ChatAndTrades({ mint, tokenSymbol, trades, onTradesUpdat
         <>
           <div 
             ref={chatContainerRef}
-            className="flex-1 min-h-0 overflow-y-auto p-4 space-y-3"
+            className="flex-1 min-h-0 overflow-y-auto"
           >
             {loading ? (
-              <div className="h-full flex items-center justify-center text-gray-500">
+              <div className="flex items-center justify-center py-20 text-gray-500">
                 <div className="animate-spin w-6 h-6 border-2 border-orange-500 border-t-transparent rounded-full" />
               </div>
             ) : messages.length === 0 ? (
-              <div className="h-full flex flex-col items-center justify-center text-gray-500">
+              <div className="flex flex-col items-center justify-center py-20 text-gray-500">
                 <div className="text-4xl mb-2">🦀</div>
                 <div>No messages yet</div>
                 <div className="text-sm">{connected ? 'Be the first to chat!' : 'Connect wallet to chat'}</div>
               </div>
             ) : (
-              messages.map((msg) => (
+              <div className="p-4 space-y-3">
+              {messages.map((msg) => (
                 <div key={msg.id} className="group">
                   <div className="flex items-start gap-2">
                     <div className="flex-1 min-w-0">
@@ -473,9 +474,10 @@ export default function ChatAndTrades({ mint, tokenSymbol, trades, onTradesUpdat
                     </div>
                   </div>
                 </div>
-              ))
+              ))}
+              <div ref={messagesEndRef} />
+              </div>
             )}
-            <div ref={messagesEndRef} />
           </div>
 
           {/* Chat Input */}
@@ -529,7 +531,7 @@ export default function ChatAndTrades({ mint, tokenSymbol, trades, onTradesUpdat
           className="flex-1 min-h-0 overflow-y-auto"
         >
           {trades.length === 0 ? (
-            <div className="h-full flex flex-col items-center justify-center text-gray-500">
+            <div className="flex flex-col items-center justify-center py-20 text-gray-500">
               <div className="text-4xl mb-2">📊</div>
               <div>No trades yet</div>
               <div className="text-sm">Be the first to trade!</div>
