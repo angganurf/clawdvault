@@ -14,6 +14,7 @@ export default function TokenPage({ params }: { params: Promise<{ mint: string }
   const [token, setToken] = useState<Token | null>(null);
   const [trades, setTrades] = useState<Trade[]>([]);
   const [loading, setLoading] = useState(true);
+  const [solPrice, setSolPrice] = useState<number>(100); // Default fallback
   const [tradeType, setTradeType] = useState<'buy' | 'sell'>('buy');
   const [amount, setAmount] = useState('');
   const [trading, setTrading] = useState(false);
@@ -45,7 +46,20 @@ export default function TokenPage({ params }: { params: Promise<{ mint: string }
 
   useEffect(() => {
     fetchToken();
+    fetchSolPrice();
   }, [mint]);
+
+  const fetchSolPrice = async () => {
+    try {
+      const res = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=solana&vs_currencies=usd');
+      const data = await res.json();
+      if (data.solana?.usd) {
+        setSolPrice(data.solana.usd);
+      }
+    } catch (err) {
+      console.error('Failed to fetch SOL price:', err);
+    }
+  };
 
   useEffect(() => {
     if (token && connected) {
@@ -154,6 +168,13 @@ export default function TokenPage({ params }: { params: Promise<{ mint: string }
     if (n >= 1000000) return (n / 1000000).toFixed(2) + 'M';
     if (n >= 1000) return (n / 1000).toFixed(2) + 'K';
     return n.toFixed(2);
+  };
+
+  const formatUsd = (n: number) => {
+    if (n >= 1000000) return '$' + (n / 1000000).toFixed(1) + 'M';
+    if (n >= 1000) return '$' + (n / 1000).toFixed(1) + 'K';
+    if (n >= 1) return '$' + n.toFixed(0);
+    return '$' + n.toFixed(2);
   };
 
   const progressPercent = token 
@@ -266,15 +287,18 @@ export default function TokenPage({ params }: { params: Promise<{ mint: string }
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <div className="bg-gray-800/50 rounded-xl p-4">
                   <div className="text-gray-500 text-sm mb-1">Price</div>
-                  <div className="text-white font-mono text-lg">{formatPrice(token.price_sol)} SOL</div>
+                  <div className="text-white font-mono text-lg">{formatUsd(token.price_sol * solPrice)}</div>
+                  <div className="text-gray-500 font-mono text-xs">{formatPrice(token.price_sol)} SOL</div>
                 </div>
                 <div className="bg-gray-800/50 rounded-xl p-4">
                   <div className="text-gray-500 text-sm mb-1">Market Cap</div>
-                  <div className="text-orange-400 font-mono text-lg">{formatNumber(token.market_cap_sol)} SOL</div>
+                  <div className="text-orange-400 font-mono text-lg">{formatUsd(token.market_cap_sol * solPrice)}</div>
+                  <div className="text-gray-500 font-mono text-xs">{formatNumber(token.market_cap_sol)} SOL</div>
                 </div>
                 <div className="bg-gray-800/50 rounded-xl p-4">
                   <div className="text-gray-500 text-sm mb-1">24h Volume</div>
-                  <div className="text-blue-400 font-mono text-lg">{formatNumber(token.volume_24h || 0)} SOL</div>
+                  <div className="text-blue-400 font-mono text-lg">{formatUsd((token.volume_24h || 0) * solPrice)}</div>
+                  <div className="text-gray-500 font-mono text-xs">{formatNumber(token.volume_24h || 0)} SOL</div>
                 </div>
                 <div className="bg-gray-800/50 rounded-xl p-4">
                   <div className="text-gray-500 text-sm mb-1">Holders</div>
@@ -295,8 +319,8 @@ export default function TokenPage({ params }: { params: Promise<{ mint: string }
                   />
                 </div>
                 <div className="flex justify-between text-xs text-gray-500 mt-2">
-                  <span>{formatNumber(token.real_sol_reserves)} SOL raised</span>
-                  <span>85 SOL goal (~$69K)</span>
+                  <span>{formatUsd(token.real_sol_reserves * solPrice)} raised</span>
+                  <span>{formatUsd(85 * solPrice)} goal</span>
                 </div>
               </div>
 
