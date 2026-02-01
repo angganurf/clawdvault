@@ -11,7 +11,7 @@
     "db:studio": "prisma studio"
   },
   "dependencies": {
-    "@prisma/client": "^7.3.0",
+    "@prisma/client": "^5.22.0",
     "@solana/wallet-adapter-base": "^0.9.23",
     "@solana/wallet-adapter-react": "^0.15.35",
     "@solana/wallet-adapter-react-ui": "^0.9.35",
@@ -20,7 +20,7 @@
     "@supabase/supabase-js": "^2.39.0",
     "dotenv": "^17.2.3",
     "next": "^16.1.6",
-    "prisma": "^7.3.0",
+    "prisma": "^5.22.0",
     "react": "^18",
     "react-dom": "^18"
   },

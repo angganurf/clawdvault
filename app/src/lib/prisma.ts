@@ -4,20 +4,14 @@ const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined;
 };
 
-// Lazy initialization to avoid build-time errors
-function getPrismaClient(): PrismaClient {
-  if (!globalForPrisma.prisma) {
-    // Check for DATABASE_URL at runtime
-    if (!process.env.DATABASE_URL) {
-      throw new Error('DATABASE_URL is not set');
-    }
-    globalForPrisma.prisma = new PrismaClient();
-  }
-  return globalForPrisma.prisma;
+export const prisma = globalForPrisma.prisma ?? new PrismaClient();
+
+if (process.env.NODE_ENV !== 'production') {
+  globalForPrisma.prisma = prisma;
 }
 
-// Export a getter function
-export const db = () => getPrismaClient();
+// Export db() for compatibility
+export const db = () => prisma;
 
 // Fee configuration (basis points)
 export const FEE_CONFIG = {
