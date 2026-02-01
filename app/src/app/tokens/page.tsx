@@ -13,10 +13,24 @@ export default function TokensPage() {
   const [sort, setSort] = useState('created_at');
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState<FilterTab>('all');
+  const [solPrice, setSolPrice] = useState<number>(100);
 
   useEffect(() => {
     fetchTokens();
+    fetchSolPrice();
   }, [sort]);
+
+  const fetchSolPrice = async () => {
+    try {
+      const res = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=solana&vs_currencies=usd');
+      const data = await res.json();
+      if (data.solana?.usd) {
+        setSolPrice(data.solana.usd);
+      }
+    } catch (err) {
+      console.error('Failed to fetch SOL price:', err);
+    }
+  };
 
   const fetchTokens = async () => {
     try {
@@ -64,6 +78,15 @@ export default function TokensPage() {
 
     return result;
   }, [tokens, filter, search]);
+
+  const formatUsd = (n: number) => {
+    if (n >= 1000000) return '$' + (n / 1000000).toFixed(1) + 'M';
+    if (n >= 1000) return '$' + (n / 1000).toFixed(1) + 'K';
+    if (n >= 1) return '$' + n.toFixed(0);
+    if (n >= 0.01) return '$' + n.toFixed(2);
+    if (n >= 0.0001) return '$' + n.toFixed(4);
+    return '<$0.0001';
+  };
 
   const formatPrice = (price: number) => {
     if (price < 0.000001) return '<0.000001 SOL';
@@ -248,15 +271,15 @@ export default function TokensPage() {
 
                   {/* Stats */}
                   <div className="text-right hidden sm:block">
-                    <div className="text-white font-mono">{formatPrice(token.price_sol)}</div>
+                    <div className="text-white font-mono">{formatUsd(token.price_sol * solPrice)}</div>
                     <div className="text-gray-500 text-sm">Price</div>
                   </div>
                   <div className="text-right hidden md:block">
-                    <div className="text-orange-400 font-mono">{formatMcap(token.market_cap_sol)}</div>
+                    <div className="text-orange-400 font-mono">{formatUsd(token.market_cap_sol * solPrice)}</div>
                     <div className="text-gray-500 text-sm">MCap</div>
                   </div>
                   <div className="text-right hidden lg:block">
-                    <div className="text-blue-400 font-mono">{formatVolume(token.volume_24h)} SOL</div>
+                    <div className="text-blue-400 font-mono">{formatUsd((token.volume_24h || 0) * solPrice)}</div>
                     <div className="text-gray-500 text-sm">24h Vol</div>
                   </div>
                   <div className="text-right hidden lg:block">
