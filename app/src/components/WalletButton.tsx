@@ -8,7 +8,7 @@ function shortenAddress(address: string): string {
 }
 
 export default function WalletButton() {
-  const { connected, connecting, publicKey, balance, connect, disconnect } = useWallet();
+  const { connected, connecting, initializing, publicKey, balance, connect, disconnect } = useWallet();
   const [showDropdown, setShowDropdown] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
@@ -22,6 +22,16 @@ export default function WalletButton() {
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
+
+  // Show skeleton while checking auto-reconnect
+  if (initializing) {
+    return (
+      <div className="bg-gray-800 border border-gray-700 px-4 py-2 rounded-lg animate-pulse flex items-center gap-2">
+        <div className="w-4 h-4 bg-gray-600 rounded-full" />
+        <div className="w-20 h-4 bg-gray-600 rounded" />
+      </div>
+    );
+  }
 
   if (!connected) {
     return (

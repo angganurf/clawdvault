@@ -99,12 +99,29 @@ export default function TokenChat({ mint, tokenSymbol }: TokenChatProps) {
     }
   }, [connected, publicKey, fetchProfile]);
 
-  // Scroll to bottom on new messages
+  // Scroll to bottom on new messages (within chat container only, not the whole page)
+  const initialLoadDone = useRef(false);
+  const prevMessageCount = useRef(0);
   useEffect(() => {
-    if (messagesEndRef.current) {
-      messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    // Skip the initial load - don't scroll page when chat first loads
+    if (!initialLoadDone.current) {
+      if (!loading && messages.length > 0) {
+        initialLoadDone.current = true;
+        prevMessageCount.current = messages.length;
+        // Scroll to bottom within container on initial load (without page scroll)
+        if (chatContainerRef.current) {
+          chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
+        }
+      }
+      return;
     }
-  }, [messages]);
+    
+    // Auto-scroll only when new messages are added
+    if (messages.length > prevMessageCount.current && chatContainerRef.current) {
+      chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
+    }
+    prevMessageCount.current = messages.length;
+  }, [messages, loading]);
 
   // Save username
   const saveUsername = async () => {

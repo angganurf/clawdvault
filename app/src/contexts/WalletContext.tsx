@@ -5,6 +5,7 @@ import { createContext, useContext, useState, useEffect, useCallback, ReactNode 
 interface WalletContextType {
   connected: boolean;
   connecting: boolean;
+  initializing: boolean; // true while checking auto-reconnect
   publicKey: string | null;
   balance: number | null; // SOL balance
   connect: () => Promise<void>;
@@ -16,6 +17,7 @@ interface WalletContextType {
 const WalletContext = createContext<WalletContextType>({
   connected: false,
   connecting: false,
+  initializing: true,
   publicKey: null,
   balance: null,
   connect: async () => {},
@@ -50,6 +52,7 @@ declare global {
 export function WalletProvider({ children }: { children: ReactNode }) {
   const [connected, setConnected] = useState(false);
   const [connecting, setConnecting] = useState(false);
+  const [initializing, setInitializing] = useState(true);
   const [publicKey, setPublicKey] = useState<string | null>(null);
   const [balance, setBalance] = useState<number | null>(null);
 
@@ -68,17 +71,23 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     }
 
     // Try multiple RPCs in case of rate limiting
-    // Priority: custom env > reliable free tiers > public endpoints
+    // Note: Most "free" RPCs now require API keys, official endpoint is actually most reliable
     const rpcUrls = [
       process.env.NEXT_PUBLIC_RPC_URL,
-      'https://rpc.ankr.com/solana',                    // Ankr free tier - most reliable
-      'https://solana.public-rpc.com',                  // Public RPC pool
-      'https://api.mainnet-beta.solana.com',            // Official (heavily rate limited)
+      'https://api.mainnet-beta.solana.com',            // Official - works well for low volume
+      'https://solana-rpc.publicnode.com',              // PublicNode free tier
     ].filter(Boolean) as string[];
 
+    console.log(`[Wallet] Fetching balance for: ${publicKey}`);
+    
     for (const rpcUrl of rpcUrls) {
       try {
         console.log(`[Wallet] Trying RPC: ${rpcUrl}`);
+        
+        // Add timeout to prevent hanging
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 10000);
+        
         const response = await fetch(rpcUrl, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -88,7 +97,10 @@ export function WalletProvider({ children }: { children: ReactNode }) {
             method: 'getBalance',
             params: [publicKey],
           }),
+          signal: controller.signal,
         });
+        
+        clearTimeout(timeoutId);
         
         if (!response.ok) {
           console.warn(`[Wallet] RPC ${rpcUrl} returned ${response.status}`);
@@ -96,18 +108,24 @@ export function WalletProvider({ children }: { children: ReactNode }) {
         }
         
         const data = await response.json();
+        console.log(`[Wallet] RPC ${rpcUrl} response:`, data);
+        
         if (data.result?.value !== undefined) {
           // Convert lamports to SOL
           const solBalance = data.result.value / 1e9;
-          console.log(`[Wallet] Balance fetched from ${rpcUrl}: ${solBalance} SOL`);
+          console.log(`[Wallet] ✅ Balance fetched from ${rpcUrl}: ${solBalance} SOL`);
           setBalance(solBalance);
           return; // Success, stop trying
         }
         if (data.error) {
           console.warn(`[Wallet] RPC error from ${rpcUrl}:`, data.error);
         }
-      } catch (err) {
-        console.warn(`[Wallet] Failed to fetch from ${rpcUrl}:`, err);
+      } catch (err: any) {
+        if (err.name === 'AbortError') {
+          console.warn(`[Wallet] RPC ${rpcUrl} timed out after 10s`);
+        } else {
+          console.warn(`[Wallet] Failed to fetch from ${rpcUrl}:`, err);
+        }
       }
     }
     // If all RPCs failed, set balance to null (unknown) instead of 0
@@ -179,15 +197,44 @@ export function WalletProvider({ children }: { children: ReactNode }) {
   // Auto-reconnect on page load
   useEffect(() => {
     const provider = getProvider();
-    if (!provider) return;
+    if (!provider) {
+      setInitializing(false);
+      return;
+    }
 
-    // Check if was previously connected
     const wasConnected = localStorage.getItem('walletConnected') === 'true';
     
-    if (wasConnected && provider.isConnected && provider.publicKey) {
-      setPublicKey(provider.publicKey.toString());
-      setConnected(true);
-    }
+    const attemptReconnect = async () => {
+      try {
+        // If already connected, just sync state
+        if (provider.isConnected && provider.publicKey) {
+          console.log('[Wallet] Already connected, syncing state');
+          setPublicKey(provider.publicKey.toString());
+          setConnected(true);
+          return;
+        }
+        
+        // If was previously connected, try to reconnect silently
+        if (wasConnected) {
+          console.log('[Wallet] Attempting auto-reconnect...');
+          try {
+            // Use eagerly connect (no popup if already authorized)
+            const response = await provider.connect();
+            const address = response.publicKey.toString();
+            console.log('[Wallet] Auto-reconnected:', address);
+            setPublicKey(address);
+            setConnected(true);
+          } catch (err) {
+            console.log('[Wallet] Auto-reconnect failed, clearing state');
+            localStorage.removeItem('walletConnected');
+          }
+        }
+      } finally {
+        setInitializing(false);
+      }
+    };
+
+    attemptReconnect();
 
     // Listen for account changes
     const handleAccountChange = () => {
@@ -220,6 +267,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       value={{
         connected,
         connecting,
+        initializing,
         publicKey,
         balance,
         connect,
