@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { getToken, getTokenTrades } from '@/lib/db';
 
+export const dynamic = 'force-dynamic';
+
 export async function GET(
   request: Request,
   { params }: { params: Promise<{ mint: string }> }

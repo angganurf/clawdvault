@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import { executeTrade, getToken } from '@/lib/db';
 import { TradeRequest, TradeResponse } from '@/lib/types';
 
+export const dynamic = 'force-dynamic';
+
 export async function POST(request: Request) {
   try {
     const authHeader = request.headers.get('Authorization');

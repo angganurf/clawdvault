@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import { createToken } from '@/lib/db';
 import { CreateTokenRequest, CreateTokenResponse } from '@/lib/types';
 
+export const dynamic = 'force-dynamic';
+
 export async function POST(request: Request) {
   try {
     // Check API key (optional for now)
