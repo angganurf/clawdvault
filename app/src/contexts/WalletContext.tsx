@@ -11,6 +11,8 @@ interface WalletContextType {
   connect: () => Promise<void>;
   disconnect: () => void;
   signMessage: (message: string) => Promise<Uint8Array | null>;
+  signTransaction: (transaction: string) => Promise<string | null>; // base64 in, base64 out
+  signAndSendTransaction: (transaction: string) => Promise<string | null>; // base64 in, signature out
   refreshBalance: () => Promise<void>;
 }
 
@@ -23,6 +25,8 @@ const WalletContext = createContext<WalletContextType>({
   connect: async () => {},
   disconnect: () => {},
   signMessage: async () => null,
+  signTransaction: async () => null,
+  signAndSendTransaction: async () => null,
   refreshBalance: async () => {},
 });
 
@@ -37,6 +41,8 @@ interface PhantomProvider {
   connect: () => Promise<{ publicKey: { toString: () => string } }>;
   disconnect: () => Promise<void>;
   signMessage: (message: Uint8Array, encoding: string) => Promise<{ signature: Uint8Array }>;
+  signTransaction: (transaction: any) => Promise<any>;
+  signAndSendTransaction: (transaction: any, options?: any) => Promise<{ signature: string }>;
   on: (event: string, callback: () => void) => void;
   off: (event: string, callback: () => void) => void;
 }
@@ -194,6 +200,56 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     }
   }, [getProvider, connected]);
 
+  // Sign transaction (returns signed transaction as base64)
+  const signTransaction = useCallback(async (transactionBase64: string): Promise<string | null> => {
+    const provider = getProvider();
+    if (!provider || !connected) return null;
+
+    try {
+      // Decode base64 to buffer
+      const transactionBuffer = Buffer.from(transactionBase64, 'base64');
+      
+      // Import Transaction from @solana/web3.js at runtime
+      const { Transaction } = await import('@solana/web3.js');
+      const transaction = Transaction.from(transactionBuffer);
+      
+      // Sign with Phantom
+      const signedTransaction = await provider.signTransaction(transaction);
+      
+      // Serialize and return as base64
+      const serialized = signedTransaction.serialize({
+        requireAllSignatures: false,
+        verifySignatures: false,
+      });
+      return Buffer.from(serialized).toString('base64');
+    } catch (err) {
+      console.error('Failed to sign transaction:', err);
+      return null;
+    }
+  }, [getProvider, connected]);
+
+  // Sign and send transaction (returns signature)
+  const signAndSendTransaction = useCallback(async (transactionBase64: string): Promise<string | null> => {
+    const provider = getProvider();
+    if (!provider || !connected) return null;
+
+    try {
+      // Decode base64 to buffer
+      const transactionBuffer = Buffer.from(transactionBase64, 'base64');
+      
+      // Import Transaction from @solana/web3.js at runtime
+      const { Transaction } = await import('@solana/web3.js');
+      const transaction = Transaction.from(transactionBuffer);
+      
+      // Sign and send with Phantom
+      const { signature } = await provider.signAndSendTransaction(transaction);
+      return signature;
+    } catch (err) {
+      console.error('Failed to sign and send transaction:', err);
+      return null;
+    }
+  }, [getProvider, connected]);
+
   // Auto-reconnect on page load
   useEffect(() => {
     const provider = getProvider();
@@ -273,6 +329,8 @@ export function WalletProvider({ children }: { children: ReactNode }) {
         connect,
         disconnect,
         signMessage,
+        signTransaction,
+        signAndSendTransaction,
         refreshBalance,
       }}
     >
