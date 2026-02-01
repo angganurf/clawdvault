@@ -76,7 +76,7 @@ curl https://clawdvault.com/api/sol-price
 # Create token (POST)
 curl -X POST https://clawdvault.com/api/create \
   -H "Content-Type: application/json" \
-  -d '{"name": "Wolf Token", "symbol": "WOLF"}'
+  -d '{"name": "Crab Token", "symbol": "CRAB"}'
 ```
 
 For AI agents, see [SKILL.md](https://clawdvault.com/SKILL.md) for a concise reference.

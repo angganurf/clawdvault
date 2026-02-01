@@ -55,13 +55,13 @@ export default function DocsPage() {
                 
                 <h4 className="text-white font-medium mb-2">Request Body</h4>
                 <CodeBlock title="JSON">{`{
-  "name": "Wolf Pack Token",
-  "symbol": "WOLF",
+  "name": "Crab Token",
+  "symbol": "CRAB",
   "description": "...",
   "image": "https://...",
-  "twitter": "@wolfpack",
-  "telegram": "@wolfpackchat",
-  "website": "wolfpack.xyz",
+  "twitter": "@crabtoken",
+  "telegram": "@crabtokenchat",
+  "website": "crabtoken.xyz",
   "initialBuy": 0.5
 }`}</CodeBlock>
                 <ul className="text-gray-400 text-sm space-y-1 mb-4 ml-4">
@@ -109,8 +109,8 @@ export default function DocsPage() {
   "tokens": [
     {
       "mint": "ABC123...",
-      "name": "Wolf Pack Token",
-      "symbol": "WOLF",
+      "name": "Crab Token",
+      "symbol": "CRAB",
       "price_sol": 0.000028,
       "market_cap_sol": 30.5,
       "volume_24h": 5.2,
@@ -137,8 +137,8 @@ export default function DocsPage() {
                 <CodeBlock title="JSON">{`{
   "token": {
     "mint": "ABC123...",
-    "name": "Wolf Pack Token",
-    "symbol": "WOLF",
+    "name": "Crab Token",
+    "symbol": "CRAB",
     "description": "...",
     "image": "https://...",
     "price_sol": 0.000028,
