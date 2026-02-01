@@ -15,6 +15,7 @@ export default function CreatePage() {
   const [twitter, setTwitter] = useState('');
   const [telegram, setTelegram] = useState('');
   const [website, setWebsite] = useState('');
+  const [initialBuy, setInitialBuy] = useState('');
   const [uploading, setUploading] = useState(false);
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<CreateTokenResponse | null>(null);
@@ -118,6 +119,7 @@ export default function CreatePage() {
         twitter: twitter || undefined,
         telegram: telegram || undefined,
         website: website || undefined,
+        initialBuy: initialBuy ? parseFloat(initialBuy) : undefined,
       };
 
       const res = await fetch('/api/create', {
@@ -162,6 +164,15 @@ export default function CreatePage() {
                 <div className="text-gray-500">Mint Address:</div>
                 <div className="text-orange-400 break-all">{result.mint}</div>
               </div>
+              {(result as any).initialBuy && (
+                <div className="bg-gray-800 rounded-lg p-4 text-sm mb-4">
+                  <div className="text-green-400 font-medium mb-1">🎉 Initial Buy Complete!</div>
+                  <div className="text-gray-300">
+                    You bought <span className="text-white font-medium">{(result as any).initialBuy.tokens_received.toLocaleString()}</span> tokens 
+                    for <span className="text-white font-medium">{(result as any).initialBuy.sol_spent} SOL</span>
+                  </div>
+                </div>
+              )}
               <div className="flex gap-4">
                 <Link
                   href={`/tokens/${result.mint}`}
@@ -180,6 +191,7 @@ export default function CreatePage() {
                     setTwitter('');
                     setTelegram('');
                     setWebsite('');
+                    setInitialBuy('');
                   }}
                   className="border border-gray-600 hover:border-orange-500 text-white px-6 py-2 rounded-lg transition"
                 >
@@ -362,6 +374,52 @@ export default function CreatePage() {
                     />
                   </div>
                 </div>
+              </div>
+
+              {/* Initial Buy */}
+              <div>
+                <label className="block text-white font-medium mb-2">
+                  Initial Buy <span className="text-gray-500 font-normal">(optional)</span>
+                </label>
+                <p className="text-gray-500 text-sm mb-3">
+                  Buy tokens with SOL when your token launches. You'll be the first holder!
+                </p>
+                <div className="flex gap-2 mb-3">
+                  {['0', '0.1', '0.5', '1', '2', '5'].map((amount) => (
+                    <button
+                      key={amount}
+                      type="button"
+                      onClick={() => setInitialBuy(amount === '0' ? '' : amount)}
+                      className={`px-3 py-2 rounded-lg text-sm font-medium transition ${
+                        (amount === '0' && !initialBuy) || initialBuy === amount
+                          ? 'bg-orange-500 text-white'
+                          : 'bg-gray-800 text-gray-400 hover:bg-gray-700'
+                      }`}
+                    >
+                      {amount === '0' ? 'None' : `${amount} SOL`}
+                    </button>
+                  ))}
+                </div>
+                <div className="relative">
+                  <input
+                    type="number"
+                    value={initialBuy}
+                    onChange={(e) => setInitialBuy(e.target.value)}
+                    placeholder="0.0"
+                    step="0.01"
+                    min="0"
+                    max="100"
+                    className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:border-orange-500 focus:outline-none pr-16"
+                  />
+                  <span className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 font-medium">
+                    SOL
+                  </span>
+                </div>
+                {initialBuy && parseFloat(initialBuy) > 0 && (
+                  <div className="text-green-400 text-sm mt-2">
+                    ✓ You'll buy ~{(parseFloat(initialBuy) / 0.000028).toLocaleString(undefined, { maximumFractionDigits: 0 })} tokens at launch
+                  </div>
+                )}
               </div>
 
               <div className="bg-gray-800/50 rounded-lg p-4 text-sm">

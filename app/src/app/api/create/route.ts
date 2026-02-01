@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { createToken } from '@/lib/db';
+import { createToken, executeTrade } from '@/lib/db';
 import { CreateTokenRequest, CreateTokenResponse } from '@/lib/types';
 
 export const dynamic = 'force-dynamic';
@@ -36,6 +36,22 @@ export async function POST(request: Request) {
       );
     }
     
+    // Validate initialBuy
+    if (body.initialBuy !== undefined) {
+      if (body.initialBuy < 0) {
+        return NextResponse.json(
+          { success: false, error: 'Initial buy amount cannot be negative' },
+          { status: 400 }
+        );
+      }
+      if (body.initialBuy > 100) {
+        return NextResponse.json(
+          { success: false, error: 'Initial buy amount cannot exceed 100 SOL' },
+          { status: 400 }
+        );
+      }
+    }
+    
     // Create token
     const token = await createToken({
       name: body.name,
@@ -56,12 +72,36 @@ export async function POST(request: Request) {
       );
     }
     
+    // Execute initial buy if specified
+    let initialBuyResult = null;
+    if (body.initialBuy && body.initialBuy > 0) {
+      try {
+        initialBuyResult = await executeTrade(
+          token.mint,
+          'buy',
+          body.initialBuy,
+          apiKey  // Creator is the buyer
+        );
+      } catch (err) {
+        console.error('Initial buy failed:', err);
+        // Don't fail token creation if initial buy fails
+      }
+    }
+    
     const response: CreateTokenResponse = {
       success: true,
-      token,
+      token: initialBuyResult?.token || token,  // Use updated token if initial buy happened
       mint: token.mint,
       signature: `mock_sig_${Date.now()}`,
     };
+    
+    // Add initial buy info to response
+    if (initialBuyResult) {
+      (response as any).initialBuy = {
+        sol_spent: body.initialBuy,
+        tokens_received: initialBuyResult.trade.token_amount,
+      };
+    }
     
     return NextResponse.json(response, { status: 201 });
   } catch (error) {

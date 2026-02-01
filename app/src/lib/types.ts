@@ -75,6 +75,7 @@ export interface CreateTokenRequest {
   twitter?: string;
   telegram?: string;
   website?: string;
+  initialBuy?: number;  // SOL amount to buy at launch
 }
 
 export interface CreateTokenResponse {
