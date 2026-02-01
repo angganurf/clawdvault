@@ -212,6 +212,80 @@ export default function DocsPage() {
               </div>
             </section>
 
+            {/* On-Chain Trade - Prepare */}
+            <section className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
+              <div className="bg-purple-900/30 border-b border-gray-800 px-4 py-3 flex items-center gap-3">
+                <span className="bg-purple-500 text-white text-xs font-bold px-2 py-1 rounded">POST</span>
+                <code className="text-white font-mono">/api/trade/prepare</code>
+                <span className="text-purple-400 text-xs">ON-CHAIN</span>
+              </div>
+              <div className="p-4">
+                <p className="text-gray-400 mb-4">Prepare an on-chain trade transaction for wallet signing. Returns a transaction to sign with Phantom/Solflare.</p>
+                
+                <h4 className="text-white font-medium mb-2">Request Body</h4>
+                <CodeBlock title="JSON">{`{
+  "mint": "ABC123...",
+  "type": "buy",
+  "amount": 0.5,
+  "wallet": "YourWallet...",
+  "slippage": 0.01
+}`}</CodeBlock>
+                <ul className="text-gray-400 text-sm space-y-1 mb-4 ml-4">
+                  <li><code className="text-cyan-400">type</code> — &quot;buy&quot; (SOL → tokens) or &quot;sell&quot; (tokens → SOL)</li>
+                  <li><code className="text-cyan-400">amount</code> — SOL for buy, tokens for sell</li>
+                  <li><code className="text-cyan-400">wallet</code> — Your Solana wallet address</li>
+                  <li><code className="text-cyan-400">slippage</code> — Tolerance (default 0.01 = 1%)</li>
+                </ul>
+
+                <h4 className="text-white font-medium mb-2">Response</h4>
+                <CodeBlock title="JSON">{`{
+  "success": true,
+  "transaction": "base64...",
+  "type": "buy",
+  "input": { "sol": 0.5, "fee": 0.005 },
+  "output": { "tokens": 17857142, "minTokens": 17678570 },
+  "priceImpact": 1.67,
+  "platformWallet": "Platform..."
+}`}</CodeBlock>
+              </div>
+            </section>
+
+            {/* On-Chain Trade - Execute */}
+            <section className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
+              <div className="bg-purple-900/30 border-b border-gray-800 px-4 py-3 flex items-center gap-3">
+                <span className="bg-purple-500 text-white text-xs font-bold px-2 py-1 rounded">POST</span>
+                <code className="text-white font-mono">/api/trade/execute</code>
+                <span className="text-purple-400 text-xs">ON-CHAIN</span>
+              </div>
+              <div className="p-4">
+                <p className="text-gray-400 mb-4">Execute a signed trade transaction. Call after user signs the transaction from /prepare.</p>
+                
+                <h4 className="text-white font-medium mb-2">Request Body</h4>
+                <CodeBlock title="JSON">{`{
+  "mint": "ABC123...",
+  "type": "buy",
+  "signedTransaction": "base64...",
+  "wallet": "YourWallet...",
+  "expectedOutput": 17857142,
+  "solAmount": 0.5
+}`}</CodeBlock>
+
+                <h4 className="text-white font-medium mb-2">Response</h4>
+                <CodeBlock title="JSON">{`{
+  "success": true,
+  "signature": "5xyz...",
+  "trade": {
+    "id": "...",
+    "type": "buy",
+    "solAmount": 0.495,
+    "tokenAmount": 17857142
+  },
+  "newPrice": 0.000029,
+  "fees": { "total": 0.005 }
+}`}</CodeBlock>
+              </div>
+            </section>
+
             {/* SOL Price */}
             <section className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
               <div className="bg-blue-900/30 border-b border-gray-800 px-4 py-3 flex items-center gap-3">

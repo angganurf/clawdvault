@@ -301,3 +301,271 @@ export async function getNetworkStatus(): Promise<{
     mockMode: isMockMode(),
   };
 }
+
+/**
+ * Bonding curve parameters
+ */
+const PROTOCOL_FEE_BPS = 50; // 0.5%
+const CREATOR_FEE_BPS = 50;  // 0.5%
+const TOTAL_FEE_BPS = PROTOCOL_FEE_BPS + CREATOR_FEE_BPS; // 1%
+
+export interface BuyParams {
+  mint: string;
+  buyer: string;           // Buyer's wallet address
+  solAmount: number;       // SOL to spend
+  minTokensOut: number;    // Minimum tokens to receive (slippage)
+  creatorWallet?: string;  // Creator wallet for fees
+}
+
+export interface SellParams {
+  mint: string;
+  seller: string;          // Seller's wallet address
+  tokenAmount: number;     // Tokens to sell
+  minSolOut: number;       // Minimum SOL to receive (slippage)
+  creatorWallet?: string;  // Creator wallet for fees
+}
+
+export interface TradeResult {
+  signature: string;
+  solAmount: number;
+  tokenAmount: number;
+  fee: number;
+}
+
+/**
+ * Create a buy transaction for the user to sign
+ * Returns serialized transaction that user signs with their wallet
+ */
+export async function createBuyTransaction(
+  params: BuyParams
+): Promise<{ transaction: string; expectedTokens: number }> {
+  if (!PLATFORM_WALLET) {
+    throw new Error('Platform wallet not configured');
+  }
+
+  const connection = getConnection();
+  const mintPubkey = new PublicKey(params.mint);
+  const buyerPubkey = new PublicKey(params.buyer);
+  
+  // Calculate fee
+  const feeAmount = params.solAmount * (TOTAL_FEE_BPS / 10000);
+  const solToTrade = params.solAmount - feeAmount;
+  
+  // Get buyer's token account
+  const buyerATA = await getAssociatedTokenAddress(mintPubkey, buyerPubkey);
+  const platformATA = await getAssociatedTokenAddress(mintPubkey, PLATFORM_WALLET.publicKey);
+  
+  const transaction = new Transaction();
+  
+  // 1. Transfer SOL from buyer to platform (including fees)
+  transaction.add(
+    SystemProgram.transfer({
+      fromPubkey: buyerPubkey,
+      toPubkey: PLATFORM_WALLET.publicKey,
+      lamports: Math.floor(params.solAmount * LAMPORTS_PER_SOL),
+    })
+  );
+  
+  // Set recent blockhash and fee payer
+  const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash();
+  transaction.recentBlockhash = blockhash;
+  transaction.lastValidBlockHeight = lastValidBlockHeight;
+  transaction.feePayer = buyerPubkey;
+  
+  // Serialize for user to sign (partial sign not needed yet)
+  const serialized = transaction.serialize({
+    requireAllSignatures: false,
+    verifySignatures: false,
+  });
+  
+  return {
+    transaction: serialized.toString('base64'),
+    expectedTokens: params.minTokensOut, // Caller provides expected amount
+  };
+}
+
+/**
+ * Execute the second half of a buy after user signed
+ * Platform sends tokens to buyer
+ */
+export async function completeBuyTransaction(
+  userSignedTx: string,
+  mint: string,
+  buyer: string,
+  tokenAmount: number
+): Promise<TradeResult> {
+  if (!PLATFORM_WALLET) {
+    throw new Error('Platform wallet not configured');
+  }
+
+  const connection = getConnection();
+  
+  // Deserialize and verify user's signed transaction
+  const txBuffer = Buffer.from(userSignedTx, 'base64');
+  const userTx = Transaction.from(txBuffer);
+  
+  // Broadcast user's SOL transfer transaction
+  const solSignature = await connection.sendRawTransaction(txBuffer);
+  await connection.confirmTransaction(solSignature, 'confirmed');
+  
+  console.log(`✅ SOL received from buyer: ${solSignature}`);
+  
+  // Now send tokens to buyer
+  const mintPubkey = new PublicKey(mint);
+  const buyerPubkey = new PublicKey(buyer);
+  
+  const platformATA = await getAssociatedTokenAddress(mintPubkey, PLATFORM_WALLET.publicKey);
+  const buyerATA = await getAssociatedTokenAddress(mintPubkey, buyerPubkey);
+  
+  const tokenTx = new Transaction();
+  
+  // Create buyer's ATA if needed
+  try {
+    await connection.getAccountInfo(buyerATA);
+  } catch {
+    tokenTx.add(
+      createAssociatedTokenAccountInstruction(
+        PLATFORM_WALLET.publicKey,
+        buyerATA,
+        buyerPubkey,
+        mintPubkey
+      )
+    );
+  }
+  
+  // Transfer tokens
+  const { createTransferInstruction } = await import('@solana/spl-token');
+  tokenTx.add(
+    createTransferInstruction(
+      platformATA,
+      buyerATA,
+      PLATFORM_WALLET.publicKey,
+      BigInt(Math.floor(tokenAmount * (10 ** TOKEN_DECIMALS)))
+    )
+  );
+  
+  const tokenSignature = await sendAndConfirmTransaction(
+    connection,
+    tokenTx,
+    [PLATFORM_WALLET],
+    { commitment: 'confirmed' }
+  );
+  
+  console.log(`✅ Tokens sent to buyer: ${tokenSignature}`);
+  
+  return {
+    signature: tokenSignature,
+    solAmount: 0, // Filled by caller
+    tokenAmount,
+    fee: 0, // Filled by caller
+  };
+}
+
+/**
+ * Create a sell transaction for the user to sign
+ * User sends tokens, receives SOL back
+ */
+export async function createSellTransaction(
+  params: SellParams
+): Promise<{ transaction: string; expectedSol: number }> {
+  if (!PLATFORM_WALLET) {
+    throw new Error('Platform wallet not configured');
+  }
+
+  const connection = getConnection();
+  const mintPubkey = new PublicKey(params.mint);
+  const sellerPubkey = new PublicKey(params.seller);
+  
+  const sellerATA = await getAssociatedTokenAddress(mintPubkey, sellerPubkey);
+  const platformATA = await getAssociatedTokenAddress(mintPubkey, PLATFORM_WALLET.publicKey);
+  
+  const transaction = new Transaction();
+  
+  // Transfer tokens from seller to platform
+  const { createTransferInstruction } = await import('@solana/spl-token');
+  transaction.add(
+    createTransferInstruction(
+      sellerATA,
+      platformATA,
+      sellerPubkey, // Seller signs
+      BigInt(Math.floor(params.tokenAmount * (10 ** TOKEN_DECIMALS)))
+    )
+  );
+  
+  // Set recent blockhash and fee payer
+  const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash();
+  transaction.recentBlockhash = blockhash;
+  transaction.lastValidBlockHeight = lastValidBlockHeight;
+  transaction.feePayer = sellerPubkey;
+  
+  const serialized = transaction.serialize({
+    requireAllSignatures: false,
+    verifySignatures: false,
+  });
+  
+  return {
+    transaction: serialized.toString('base64'),
+    expectedSol: params.minSolOut,
+  };
+}
+
+/**
+ * Complete a sell after user signed token transfer
+ * Platform sends SOL to seller
+ */
+export async function completeSellTransaction(
+  userSignedTx: string,
+  seller: string,
+  solAmount: number
+): Promise<TradeResult> {
+  if (!PLATFORM_WALLET) {
+    throw new Error('Platform wallet not configured');
+  }
+
+  const connection = getConnection();
+  
+  // Broadcast user's token transfer transaction
+  const txBuffer = Buffer.from(userSignedTx, 'base64');
+  const tokenSignature = await connection.sendRawTransaction(txBuffer);
+  await connection.confirmTransaction(tokenSignature, 'confirmed');
+  
+  console.log(`✅ Tokens received from seller: ${tokenSignature}`);
+  
+  // Calculate fee
+  const feeAmount = solAmount * (TOTAL_FEE_BPS / 10000);
+  const solToSend = solAmount - feeAmount;
+  
+  // Send SOL to seller
+  const sellerPubkey = new PublicKey(seller);
+  
+  const solTx = new Transaction().add(
+    SystemProgram.transfer({
+      fromPubkey: PLATFORM_WALLET.publicKey,
+      toPubkey: sellerPubkey,
+      lamports: Math.floor(solToSend * LAMPORTS_PER_SOL),
+    })
+  );
+  
+  const solSignature = await sendAndConfirmTransaction(
+    connection,
+    solTx,
+    [PLATFORM_WALLET],
+    { commitment: 'confirmed' }
+  );
+  
+  console.log(`✅ SOL sent to seller: ${solSignature}`);
+  
+  return {
+    signature: solSignature,
+    solAmount: solToSend,
+    tokenAmount: 0, // Filled by caller
+    fee: feeAmount,
+  };
+}
+
+/**
+ * Get platform wallet public key
+ */
+export function getPlatformWalletPubkey(): string | null {
+  return PLATFORM_WALLET?.publicKey.toBase58() || null;
+}
