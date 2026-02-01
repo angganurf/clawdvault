@@ -94,7 +94,7 @@ export default function TokenPage({ params }: { params: Promise<{ mint: string }
         <div className="text-center">
           <div className="text-6xl mb-4">🔍</div>
           <h1 className="text-2xl font-bold text-white mb-2">Token Not Found</h1>
-          <Link href="/tokens" className="text-purple-400 hover:text-purple-300">
+          <Link href="/tokens" className="text-orange-400 hover:text-orange-300">
             Browse all tokens →
           </Link>
         </div>
@@ -108,7 +108,7 @@ export default function TokenPage({ params }: { params: Promise<{ mint: string }
       <header className="border-b border-gray-800 px-6 py-4">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
           <Link href="/" className="flex items-center gap-2">
-            <span className="text-2xl">🔐</span>
+            <span className="text-2xl">🦀</span>
             <span className="text-xl font-bold text-white">ClawdVault</span>
           </Link>
           <nav className="flex items-center gap-6">
@@ -161,7 +161,7 @@ export default function TokenPage({ params }: { params: Promise<{ mint: string }
                 </div>
                 <div className="bg-gray-800/50 rounded-xl p-4">
                   <div className="text-gray-500 text-sm mb-1">Market Cap</div>
-                  <div className="text-purple-400 font-mono text-lg">{formatNumber(token.market_cap_sol)} SOL</div>
+                  <div className="text-orange-400 font-mono text-lg">{formatNumber(token.market_cap_sol)} SOL</div>
                 </div>
                 <div className="bg-gray-800/50 rounded-xl p-4">
                   <div className="text-gray-500 text-sm mb-1">24h Volume</div>
@@ -177,11 +177,11 @@ export default function TokenPage({ params }: { params: Promise<{ mint: string }
               <div className="bg-gray-800/50 rounded-xl p-4">
                 <div className="flex justify-between text-sm mb-2">
                   <span className="text-gray-400">Graduation Progress</span>
-                  <span className="text-purple-400">{progressPercent.toFixed(1)}%</span>
+                  <span className="text-orange-400">{progressPercent.toFixed(1)}%</span>
                 </div>
                 <div className="h-3 bg-gray-700 rounded-full overflow-hidden">
                   <div 
-                    className="h-full bg-gradient-to-r from-purple-500 to-amber-500 transition-all duration-500"
+                    className="h-full bg-gradient-to-r from-orange-500 to-red-500 transition-all duration-500"
                     style={{ width: `${progressPercent}%` }}
                   />
                 </div>
@@ -223,7 +223,7 @@ export default function TokenPage({ params }: { params: Promise<{ mint: string }
               {/* Mint Address */}
               <div className="bg-gray-800/50 rounded-xl p-4">
                 <div className="text-gray-500 text-sm mb-2">Mint Address</div>
-                <div className="font-mono text-sm text-purple-400 break-all">{token.mint}</div>
+                <div className="font-mono text-sm text-orange-400 break-all">{token.mint}</div>
               </div>
             </div>
 
@@ -242,7 +242,7 @@ export default function TokenPage({ params }: { params: Promise<{ mint: string }
                     href={`https://raydium.io/swap/?inputCurrency=sol&outputCurrency=${token.mint}`}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="inline-block bg-purple-600 hover:bg-purple-500 text-white px-6 py-2 rounded-lg transition"
+                    className="inline-block bg-orange-500 hover:bg-orange-400 text-white px-6 py-2 rounded-lg transition"
                   >
                     Trade on Raydium
                   </a>
@@ -285,7 +285,7 @@ export default function TokenPage({ params }: { params: Promise<{ mint: string }
                       placeholder="0.00"
                       step="any"
                       min="0"
-                      className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-3 text-white text-lg font-mono placeholder-gray-500 focus:border-purple-500 focus:outline-none"
+                      className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-3 text-white text-lg font-mono placeholder-gray-500 focus:border-orange-500 focus:outline-none"
                     />
                   </div>
 

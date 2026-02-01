@@ -53,7 +53,7 @@ export default function CreatePage() {
       <header className="border-b border-gray-800 px-6 py-4">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
           <Link href="/" className="flex items-center gap-2">
-            <span className="text-2xl">🔐</span>
+            <span className="text-2xl">🦀</span>
             <span className="text-xl font-bold text-white">ClawdVault</span>
           </Link>
           <nav className="flex items-center gap-6">
@@ -83,12 +83,12 @@ export default function CreatePage() {
               </p>
               <div className="bg-gray-800 rounded-lg p-4 font-mono text-sm mb-4">
                 <div className="text-gray-500">Mint Address:</div>
-                <div className="text-purple-400 break-all">{result.mint}</div>
+                <div className="text-orange-400 break-all">{result.mint}</div>
               </div>
               <div className="flex gap-4">
                 <Link
                   href={`/tokens/${result.mint}`}
-                  className="bg-purple-600 hover:bg-purple-500 text-white px-6 py-2 rounded-lg transition"
+                  className="bg-orange-500 hover:bg-orange-400 text-white px-6 py-2 rounded-lg transition"
                 >
                   View Token
                 </Link>
@@ -100,7 +100,7 @@ export default function CreatePage() {
                     setDescription('');
                     setImage('');
                   }}
-                  className="border border-gray-600 hover:border-purple-500 text-white px-6 py-2 rounded-lg transition"
+                  className="border border-gray-600 hover:border-orange-500 text-white px-6 py-2 rounded-lg transition"
                 >
                   Create Another
                 </button>
@@ -125,7 +125,7 @@ export default function CreatePage() {
                   placeholder="e.g. Wolf Pack Token"
                   maxLength={32}
                   required
-                  className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:border-purple-500 focus:outline-none"
+                  className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:border-orange-500 focus:outline-none"
                 />
                 <div className="text-gray-500 text-sm mt-1">{name.length}/32 characters</div>
               </div>
@@ -141,7 +141,7 @@ export default function CreatePage() {
                   placeholder="e.g. WOLF"
                   maxLength={10}
                   required
-                  className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:border-purple-500 focus:outline-none uppercase"
+                  className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:border-orange-500 focus:outline-none uppercase"
                 />
                 <div className="text-gray-500 text-sm mt-1">{symbol.length}/10 characters</div>
               </div>
@@ -155,7 +155,7 @@ export default function CreatePage() {
                   onChange={(e) => setDescription(e.target.value)}
                   placeholder="What's your token about?"
                   rows={3}
-                  className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:border-purple-500 focus:outline-none resize-none"
+                  className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:border-orange-500 focus:outline-none resize-none"
                 />
               </div>
 
@@ -168,7 +168,7 @@ export default function CreatePage() {
                   value={image}
                   onChange={(e) => setImage(e.target.value)}
                   placeholder="https://..."
-                  className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:border-purple-500 focus:outline-none"
+                  className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:border-orange-500 focus:outline-none"
                 />
               </div>
 
@@ -185,7 +185,7 @@ export default function CreatePage() {
               <button
                 type="submit"
                 disabled={loading || !name || !symbol}
-                className="w-full bg-gradient-to-r from-purple-600 to-amber-500 hover:from-purple-500 hover:to-amber-400 disabled:opacity-50 disabled:cursor-not-allowed text-white py-4 rounded-xl font-semibold transition"
+                className="w-full bg-gradient-to-r from-orange-600 to-red-500 hover:from-orange-500 hover:to-red-400 disabled:opacity-50 disabled:cursor-not-allowed text-white py-4 rounded-xl font-semibold transition"
               >
                 {loading ? 'Creating...' : 'Launch Token 🚀'}
               </button>

@@ -4,8 +4,11 @@ import { Inter } from 'next/font/google'
 const inter = Inter({ subsets: ['latin'] })
 
 export const metadata = {
-  title: 'ClawdVault | Token Launchpad for AI Agents',
-  description: 'Create and trade tokens on the bonding curve. Built for AI agents.',
+  title: 'ClawdVault 🦀 | Token Launchpad for Moltys',
+  description: 'Create and trade tokens on the bonding curve. Built by crabs, for crabs. Let\'s get molty! :3',
+  icons: {
+    icon: '🦀',
+  },
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

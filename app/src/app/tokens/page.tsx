@@ -48,7 +48,7 @@ export default function TokensPage() {
       <header className="border-b border-gray-800 px-6 py-4">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
           <Link href="/" className="flex items-center gap-2">
-            <span className="text-2xl">🔐</span>
+            <span className="text-2xl">🦀</span>
             <span className="text-xl font-bold text-white">ClawdVault</span>
           </Link>
           <nav className="flex items-center gap-6">
@@ -70,7 +70,7 @@ export default function TokensPage() {
             <select
               value={sort}
               onChange={(e) => setSort(e.target.value)}
-              className="bg-gray-800 border border-gray-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-purple-500"
+              className="bg-gray-800 border border-gray-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-orange-500"
             >
               <option value="created_at">Newest</option>
               <option value="market_cap">Market Cap</option>
@@ -90,7 +90,7 @@ export default function TokensPage() {
               <p className="text-gray-400 mb-6">Be the first to launch!</p>
               <Link
                 href="/create"
-                className="inline-block bg-purple-600 hover:bg-purple-500 text-white px-6 py-3 rounded-lg transition"
+                className="inline-block bg-orange-500 hover:bg-orange-400 text-white px-6 py-3 rounded-lg transition"
               >
                 Create Token
               </Link>
@@ -101,7 +101,7 @@ export default function TokensPage() {
                 <Link
                   key={token.mint}
                   href={`/tokens/${token.mint}`}
-                  className="bg-gray-800/50 border border-gray-700 hover:border-purple-500 rounded-xl p-4 transition flex items-center gap-4"
+                  className="bg-gray-800/50 border border-gray-700 hover:border-orange-500 rounded-xl p-4 transition flex items-center gap-4"
                 >
                   {/* Image */}
                   <div className="w-12 h-12 bg-gray-700 rounded-full flex items-center justify-center text-2xl flex-shrink-0">
@@ -132,7 +132,7 @@ export default function TokensPage() {
                     <div className="text-gray-500 text-sm">Price</div>
                   </div>
                   <div className="text-right hidden md:block">
-                    <div className="text-purple-400 font-mono">{formatMcap(token.market_cap_sol)}</div>
+                    <div className="text-orange-400 font-mono">{formatMcap(token.market_cap_sol)}</div>
                     <div className="text-gray-500 text-sm">MCap</div>
                   </div>
                   <div className="text-right hidden lg:block">
