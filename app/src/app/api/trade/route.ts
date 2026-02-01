@@ -8,7 +8,6 @@ interface TradeRequest {
   type: 'buy' | 'sell';
   amount: number;
   slippage?: number;
-  referrer?: string;  // Referral code for fee sharing
 }
 
 export async function POST(request: Request) {
@@ -59,13 +58,12 @@ export async function POST(request: Request) {
       );
     }
     
-    // Execute trade with referrer
+    // Execute trade
     const result = await executeTrade(
       body.mint,
       body.type,
       body.amount,
-      apiKey,
-      body.referrer  // Pass referrer for fee sharing
+      apiKey
     );
     
     if (!result) {

@@ -167,15 +167,13 @@ export default function DocsPage() {
   "mint": "ABC123...",
   "type": "buy",
   "amount": 0.5,
-  "slippage": 1,
-  "referrer": "XYZ789..."
+  "slippage": 1
 }`}</CodeBlock>
                 <ul className="text-gray-400 text-sm space-y-1 mb-4 ml-4">
                   <li><code className="text-cyan-400">mint</code> <span className="text-red-400">required</span> — token mint address</li>
                   <li><code className="text-cyan-400">type</code> <span className="text-red-400">required</span> — &quot;buy&quot; or &quot;sell&quot;</li>
                   <li><code className="text-cyan-400">amount</code> <span className="text-red-400">required</span> — SOL for buy, tokens for sell</li>
                   <li><code className="text-cyan-400">slippage</code> <span className="text-gray-500">optional</span> — default 1%</li>
-                  <li><code className="text-cyan-400">referrer</code> <span className="text-gray-500">optional</span> — referrer wallet</li>
                 </ul>
 
                 <h4 className="text-white font-medium mb-2">Response</h4>
@@ -187,9 +185,8 @@ export default function DocsPage() {
   "new_price": 0.000029,
   "fees": {
     "total": 0.005,
-    "protocol": 0.0015,
-    "creator": 0.0025,
-    "referrer": 0.001
+    "protocol": 0.0025,
+    "creator": 0.0025
   }
 }`}</CodeBlock>
               </div>
@@ -295,9 +292,7 @@ export default function DocsPage() {
                   <span className="text-gray-500">→</span>
                   <span className="text-green-400">0.5% creator</span>
                   <span className="text-gray-500">|</span>
-                  <span className="text-orange-400">0.3% protocol</span>
-                  <span className="text-gray-500">|</span>
-                  <span className="text-blue-400">0.2% referrer</span>
+                  <span className="text-orange-400">0.5% protocol</span>
                 </div>
               </div>
             </div>

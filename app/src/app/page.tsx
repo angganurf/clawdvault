@@ -175,33 +175,33 @@ function TokenCard({ token, badge, solPrice }: { token: any, badge?: string, sol
   return (
     <Link 
       href={`/tokens/${token.mint}`}
-      className="bg-gray-800/50 rounded-xl p-4 border border-gray-700 hover:border-orange-500/50 transition group"
+      className="bg-gray-800/50 rounded-xl p-3 sm:p-4 border border-gray-700 hover:border-orange-500/50 transition group"
     >
-      <div className="flex items-start gap-3">
+      <div className="flex items-center gap-3">
         {token.image ? (
           <img 
             src={token.image} 
             alt={token.name}
-            className="w-12 h-12 rounded-lg object-cover bg-gray-700"
+            className="w-11 h-11 sm:w-12 sm:h-12 rounded-lg object-cover bg-gray-700 flex-shrink-0"
           />
         ) : (
-          <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-orange-500 to-red-500 flex items-center justify-center text-xl">
+          <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-lg bg-gradient-to-br from-orange-500 to-red-500 flex items-center justify-center text-xl flex-shrink-0">
             🦀
           </div>
         )}
         <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2">
-            <span className="font-semibold text-white truncate">{token.name}</span>
+          <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
+            <span className="font-semibold text-white truncate text-sm sm:text-base">{token.name}</span>
             {badge && (
-              <span className="text-xs bg-orange-500/20 text-orange-400 px-2 py-0.5 rounded-full">
+              <span className="text-[10px] sm:text-xs bg-orange-500/20 text-orange-400 px-1.5 sm:px-2 py-0.5 rounded-full flex-shrink-0">
                 {badge}
               </span>
             )}
           </div>
-          <div className="text-gray-400 text-sm">${token.symbol}</div>
+          <div className="text-gray-400 text-xs sm:text-sm">${token.symbol}</div>
         </div>
-        <div className="text-right">
-          <div className="text-green-400 text-sm font-medium">
+        <div className="text-right flex-shrink-0">
+          <div className="text-green-400 text-sm sm:text-base font-medium">
             {formatValue(mcapSol, solPrice)}
           </div>
           <div className="text-gray-500 text-xs">mcap</div>

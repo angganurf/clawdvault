@@ -229,8 +229,7 @@ export async function executeTrade(
   mint: string,
   type: 'buy' | 'sell',
   amount: number,
-  trader: string,
-  referrer?: string
+  trader: string
 ): Promise<{ token: Token; trade: Trade; fees: { protocol: number; creator: number; referrer: number } } | null> {
   // Get current token state
   const token = await db().token.findUnique({
@@ -263,7 +262,7 @@ export async function executeTrade(
     tokenAmount = virtualTokens - newVirtualTokens;
     
     // Calculate fees
-    const fees = calculateFees(solAmount, !!referrer);
+    const fees = calculateFees(solAmount);
     const solAfterFee = solAmount - fees.total;
     
     newRealSol = realSol + solAfterFee;
@@ -296,8 +295,8 @@ export async function executeTrade(
           totalFee: fees.total,
           protocolFee: fees.protocol,
           creatorFee: fees.creator,
-          referrerFee: fees.referrer,
-          referrer: referrer || null,
+          referrerFee: 0,
+          referrer: null,
           signature: `mock_${Date.now()}`,
         },
       });
@@ -322,16 +321,6 @@ export async function executeTrade(
           recipient: token.creator,
           feeType: FeeType.CREATOR,
           amount: fees.creator,
-        });
-      }
-      
-      if (fees.referrer > 0 && referrer) {
-        feeRecords.push({
-          tokenId: token.id,
-          tradeId: trade.id,
-          recipient: referrer,
-          feeType: FeeType.REFERRER,
-          amount: fees.referrer,
         });
       }
       
@@ -368,7 +357,7 @@ export async function executeTrade(
     solAmount = virtualSol - newVirtualSol;
     
     // Calculate fees on SOL out
-    const fees = calculateFees(solAmount, !!referrer);
+    const fees = calculateFees(solAmount);
     solAmount -= fees.total;
     
     newRealSol = realSol - solAmount;
@@ -398,13 +387,13 @@ export async function executeTrade(
           totalFee: fees.total,
           protocolFee: fees.protocol,
           creatorFee: fees.creator,
-          referrerFee: fees.referrer,
-          referrer: referrer || null,
+          referrerFee: 0,
+          referrer: null,
           signature: `mock_${Date.now()}`,
         },
       });
       
-      // Create fee records (same as buy)
+      // Create fee records
       const feeRecords = [];
       if (fees.protocol > 0) {
         feeRecords.push({
@@ -422,15 +411,6 @@ export async function executeTrade(
           recipient: token.creator,
           feeType: FeeType.CREATOR,
           amount: fees.creator,
-        });
-      }
-      if (fees.referrer > 0 && referrer) {
-        feeRecords.push({
-          tokenId: token.id,
-          tradeId: trade.id,
-          recipient: referrer,
-          feeType: FeeType.REFERRER,
-          amount: fees.referrer,
         });
       }
       if (feeRecords.length > 0) {

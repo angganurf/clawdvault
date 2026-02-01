@@ -16,31 +16,20 @@ export const db = () => prisma;
 // Fee configuration (basis points)
 export const FEE_CONFIG = {
   TOTAL_BPS: 100,      // 1% total fee
-  PROTOCOL_BPS: 30,    // 0.3% to protocol
+  PROTOCOL_BPS: 50,    // 0.5% to protocol
   CREATOR_BPS: 50,     // 0.5% to creator  
-  REFERRER_BPS: 20,    // 0.2% to referrer (if exists)
 };
 
 // Calculate fee breakdown
-export function calculateFees(solAmount: number, hasReferrer: boolean) {
+export function calculateFees(solAmount: number) {
   const totalFee = (solAmount * FEE_CONFIG.TOTAL_BPS) / 10000;
   
-  if (hasReferrer) {
-    return {
-      total: totalFee,
-      protocol: (solAmount * FEE_CONFIG.PROTOCOL_BPS) / 10000,
-      creator: (solAmount * FEE_CONFIG.CREATOR_BPS) / 10000,
-      referrer: (solAmount * FEE_CONFIG.REFERRER_BPS) / 10000,
-    };
-  } else {
-    // No referrer - split referrer fee between protocol and creator
-    return {
-      total: totalFee,
-      protocol: (solAmount * (FEE_CONFIG.PROTOCOL_BPS + 10)) / 10000, // 0.4%
-      creator: (solAmount * (FEE_CONFIG.CREATOR_BPS + 10)) / 10000,   // 0.6%
-      referrer: 0,
-    };
-  }
+  return {
+    total: totalFee,
+    protocol: (solAmount * FEE_CONFIG.PROTOCOL_BPS) / 10000,
+    creator: (solAmount * FEE_CONFIG.CREATOR_BPS) / 10000,
+    referrer: 0, // No longer used
+  };
 }
 
 // Constants

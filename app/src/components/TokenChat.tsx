@@ -113,22 +113,34 @@ export default function TokenChat({ mint, tokenSymbol }: TokenChatProps) {
   const initialLoadDone = useRef(false);
   const prevMessageCount = useRef(0);
   useEffect(() => {
-    // Skip the initial load - don't scroll page when chat first loads
+    // Skip completely on initial page load to prevent mobile scroll issues
     if (!initialLoadDone.current) {
-      if (!loading && messages.length > 0) {
+      if (!loading) {
         initialLoadDone.current = true;
         prevMessageCount.current = messages.length;
-        // Scroll to bottom within container on initial load (without page scroll)
-        if (chatContainerRef.current) {
-          chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
+        // Only scroll within container after a delay, and only if there are messages
+        if (messages.length > 0 && chatContainerRef.current) {
+          // Use setTimeout to ensure this happens after page layout is stable
+          setTimeout(() => {
+            if (chatContainerRef.current) {
+              // Save current page scroll position
+              const pageScrollY = window.scrollY;
+              chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
+              // Restore page scroll position in case it changed
+              window.scrollTo(0, pageScrollY);
+            }
+          }, 100);
         }
       }
       return;
     }
     
-    // Auto-scroll only when new messages are added
+    // Auto-scroll only when new messages are added (user is actively chatting)
     if (messages.length > prevMessageCount.current && chatContainerRef.current) {
+      const pageScrollY = window.scrollY;
       chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
+      // Restore page position on mobile
+      window.scrollTo(0, pageScrollY);
     }
     prevMessageCount.current = messages.length;
   }, [messages, loading]);
