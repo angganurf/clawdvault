@@ -20,7 +20,8 @@ import {
 } from '@solana/spl-token';
 
 // Program ID - UPDATE AFTER DEPLOYMENT
-export const PROGRAM_ID = new PublicKey('C1awdVau1tXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX');
+// Placeholder until real program deployed (use anchor build keypair after deploy)
+export const PROGRAM_ID = new PublicKey('11111111111111111111111111111111');
 
 // Seeds
 const CONFIG_SEED = Buffer.from('config');

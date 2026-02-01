@@ -3,13 +3,13 @@ seeds = false
 skip-lint = false
 
 [programs.localnet]
-clawdvault = "C1awdVau1tXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
+clawdvault = "CLawdVau1tSoLaNa1111111111111111111111111"
 
 [programs.devnet]
-clawdvault = "C1awdVau1tXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
+clawdvault = "CLawdVau1tSoLaNa1111111111111111111111111"
 
 [programs.mainnet]
-clawdvault = "C1awdVau1tXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
+clawdvault = "CLawdVau1tSoLaNa1111111111111111111111111"
 
 [registry]
 url = "https://api.apr.dev"
