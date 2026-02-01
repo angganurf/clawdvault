@@ -28,7 +28,6 @@ export function calculateFees(solAmount: number) {
     total: totalFee,
     protocol: (solAmount * FEE_CONFIG.PROTOCOL_BPS) / 10000,
     creator: (solAmount * FEE_CONFIG.CREATOR_BPS) / 10000,
-    referrer: 0, // No longer used
   };
 }
 

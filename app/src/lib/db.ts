@@ -12,16 +12,6 @@ function generateMint(): string {
   return result;
 }
 
-// Generate referral code
-function generateReferralCode(): string {
-  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-  let result = '';
-  for (let i = 0; i < 8; i++) {
-    result += chars.charAt(Math.floor(Math.random() * chars.length));
-  }
-  return result;
-}
-
 // Calculate price from reserves
 function calculatePrice(virtualSol: number, virtualTokens: number): number {
   return virtualSol / virtualTokens;
@@ -230,7 +220,7 @@ export async function executeTrade(
   type: 'buy' | 'sell',
   amount: number,
   trader: string
-): Promise<{ token: Token; trade: Trade; fees: { protocol: number; creator: number; referrer: number } } | null> {
+): Promise<{ token: Token; trade: Trade; fees: { protocol: number; creator: number } } | null> {
   // Get current token state
   const token = await db().token.findUnique({
     where: { mint },
@@ -295,8 +285,6 @@ export async function executeTrade(
           totalFee: fees.total,
           protocolFee: fees.protocol,
           creatorFee: fees.creator,
-          referrerFee: 0,
-          referrer: null,
           signature: `mock_${Date.now()}`,
         },
       });
@@ -387,8 +375,6 @@ export async function executeTrade(
           totalFee: fees.total,
           protocolFee: fees.protocol,
           creatorFee: fees.creator,
-          referrerFee: 0,
-          referrer: null,
           signature: `mock_${Date.now()}`,
         },
       });
@@ -451,7 +437,6 @@ export async function getFeesEarned(address: string) {
   const result = {
     protocol: { total: 0, claimed: 0, unclaimed: 0 },
     creator: { total: 0, claimed: 0, unclaimed: 0 },
-    referrer: { total: 0, claimed: 0, unclaimed: 0 },
   };
   
   fees.forEach((f) => {
@@ -480,26 +465,14 @@ export async function validateApiKey(apiKey: string): Promise<boolean> {
 }
 
 // Register agent
-export async function registerAgent(wallet: string, name?: string, referredBy?: string) {
-  const referralCode = generateReferralCode();
-  
+export async function registerAgent(wallet: string, name?: string) {
   const agent = await db().agent.create({
     data: {
       wallet,
       name,
       apiKey: `cv_${generateMint().substring(0, 32)}`,
-      referralCode,
-      referredBy,
     },
   });
-  
-  // Update referrer's count if exists
-  if (referredBy) {
-    await db().agent.updateMany({
-      where: { referralCode: referredBy },
-      data: { referralCount: { increment: 1 } },
-    });
-  }
   
   return agent;
 }

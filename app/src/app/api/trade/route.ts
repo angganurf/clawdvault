@@ -81,10 +81,9 @@ export async function POST(request: Request) {
       sol_received: body.type === 'sell' ? result.trade.sol_amount : undefined,
       new_price: result.token.price_sol,
       fees: {
-        total: result.fees.protocol + result.fees.creator + result.fees.referrer,
+        total: result.fees.protocol + result.fees.creator,
         protocol: result.fees.protocol,
         creator: result.fees.creator,
-        referrer: result.fees.referrer,
       },
     });
   } catch (error) {

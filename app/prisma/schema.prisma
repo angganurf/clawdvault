@@ -68,10 +68,6 @@ model Trade {
   totalFee    Decimal @default(0) @map("total_fee") @db.Decimal(20, 9)
   protocolFee Decimal @default(0) @map("protocol_fee") @db.Decimal(20, 9)
   creatorFee  Decimal @default(0) @map("creator_fee") @db.Decimal(20, 9)
-  referrerFee Decimal @default(0) @map("referrer_fee") @db.Decimal(20, 9)
-  
-  // Referrer (for fee sharing)
-  referrer String?
   
   signature String?
   
@@ -83,7 +79,6 @@ model Trade {
   
   @@index([tokenMint])
   @@index([trader])
-  @@index([referrer])
   @@index([createdAt(sort: Desc)])
   @@map("trades")
 }
@@ -120,7 +115,6 @@ model Fee {
 enum FeeType {
   PROTOCOL
   CREATOR
-  REFERRER
 }
 
 // ============================================
@@ -142,12 +136,6 @@ model Agent {
   totalVolume   Decimal @default(0) @map("total_volume") @db.Decimal(20, 9)
   totalFees     Decimal @default(0) @map("total_fees") @db.Decimal(20, 9)
   
-  // Referral tracking
-  referralCode    String  @unique @map("referral_code")
-  referredBy      String? @map("referred_by")
-  referralCount   Int     @default(0) @map("referral_count")
-  referralEarnings Decimal @default(0) @map("referral_earnings") @db.Decimal(20, 9)
-  
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
   
@@ -162,9 +150,8 @@ model Config {
   
   // Fee structure (basis points, 100 = 1%)
   totalFeeBps    Int @default(100) @map("total_fee_bps")     // 1% total
-  protocolFeeBps Int @default(30) @map("protocol_fee_bps")   // 0.3% to protocol
+  protocolFeeBps Int @default(50) @map("protocol_fee_bps")   // 0.5% to protocol
   creatorFeeBps  Int @default(50) @map("creator_fee_bps")    // 0.5% to creator
-  referrerFeeBps Int @default(20) @map("referrer_fee_bps")   // 0.2% to referrer
   
   // Treasury
   treasuryWallet String @map("treasury_wallet")

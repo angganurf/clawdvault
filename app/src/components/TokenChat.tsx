@@ -112,35 +112,32 @@ export default function TokenChat({ mint, tokenSymbol }: TokenChatProps) {
   // Scroll to bottom on new messages (within chat container only, not the whole page)
   const initialLoadDone = useRef(false);
   const prevMessageCount = useRef(0);
+  const userHasInteracted = useRef(false);
+  
+  // Track user interaction with chat
+  const handleChatInteraction = useCallback(() => {
+    userHasInteracted.current = true;
+  }, []);
+  
   useEffect(() => {
-    // Skip completely on initial page load to prevent mobile scroll issues
+    // Never auto-scroll on initial page load - prevents mobile jumping to chat
     if (!initialLoadDone.current) {
       if (!loading) {
         initialLoadDone.current = true;
         prevMessageCount.current = messages.length;
-        // Only scroll within container after a delay, and only if there are messages
-        if (messages.length > 0 && chatContainerRef.current) {
-          // Use setTimeout to ensure this happens after page layout is stable
-          setTimeout(() => {
-            if (chatContainerRef.current) {
-              // Save current page scroll position
-              const pageScrollY = window.scrollY;
-              chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
-              // Restore page scroll position in case it changed
-              window.scrollTo(0, pageScrollY);
-            }
-          }, 100);
-        }
+        // DON'T scroll on initial load - let user scroll naturally
       }
       return;
     }
     
-    // Auto-scroll only when new messages are added (user is actively chatting)
-    if (messages.length > prevMessageCount.current && chatContainerRef.current) {
-      const pageScrollY = window.scrollY;
-      chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
-      // Restore page position on mobile
-      window.scrollTo(0, pageScrollY);
+    // Only auto-scroll if user has interacted with chat (sent a message)
+    if (userHasInteracted.current && messages.length > prevMessageCount.current && chatContainerRef.current) {
+      // Use requestAnimationFrame for smoother scroll that doesn't affect page position
+      requestAnimationFrame(() => {
+        if (chatContainerRef.current) {
+          chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
+        }
+      });
     }
     prevMessageCount.current = messages.length;
   }, [messages, loading]);
@@ -268,6 +265,9 @@ export default function TokenChat({ mint, tokenSymbol }: TokenChatProps) {
     e.preventDefault();
     if (!newMessage.trim() || sending || !publicKey) return;
 
+    // Mark that user has interacted - enables auto-scroll for new messages
+    userHasInteracted.current = true;
+    
     setSending(true);
     setError('');
 

@@ -175,36 +175,49 @@ function TokenCard({ token, badge, solPrice }: { token: any, badge?: string, sol
   return (
     <Link 
       href={`/tokens/${token.mint}`}
-      className="bg-gray-800/50 rounded-xl p-3 sm:p-4 border border-gray-700 hover:border-orange-500/50 transition group"
+      className="block bg-gradient-to-r from-gray-800/80 to-gray-800/40 rounded-xl p-4 border border-gray-700/50 hover:border-orange-500/50 hover:shadow-lg hover:shadow-orange-500/10 transition-all duration-200 group"
     >
-      <div className="flex items-center gap-3">
-        {token.image ? (
-          <img 
-            src={token.image} 
-            alt={token.name}
-            className="w-11 h-11 sm:w-12 sm:h-12 rounded-lg object-cover bg-gray-700 flex-shrink-0"
-          />
-        ) : (
-          <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-lg bg-gradient-to-br from-orange-500 to-red-500 flex items-center justify-center text-xl flex-shrink-0">
-            🦀
-          </div>
-        )}
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
-            <span className="font-semibold text-white truncate text-sm sm:text-base">{token.name}</span>
-            {badge && (
-              <span className="text-[10px] sm:text-xs bg-orange-500/20 text-orange-400 px-1.5 sm:px-2 py-0.5 rounded-full flex-shrink-0">
-                {badge}
-              </span>
-            )}
-          </div>
-          <div className="text-gray-400 text-xs sm:text-sm">${token.symbol}</div>
+      <div className="flex items-center gap-4">
+        {/* Token Image */}
+        <div className="relative flex-shrink-0">
+          {token.image ? (
+            <img 
+              src={token.image} 
+              alt={token.name}
+              className="w-12 h-12 sm:w-14 sm:h-14 rounded-xl object-cover bg-gray-700 ring-2 ring-gray-600 group-hover:ring-orange-500/50 transition-all"
+            />
+          ) : (
+            <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-xl bg-gradient-to-br from-orange-500 to-red-500 flex items-center justify-center text-2xl ring-2 ring-orange-500/30">
+              🦀
+            </div>
+          )}
+          {badge && (
+            <span className={`absolute -top-1 -right-1 text-[10px] px-1.5 py-0.5 rounded-full font-medium ${
+              badge === 'hot' 
+                ? 'bg-red-500 text-white' 
+                : 'bg-green-500 text-white'
+            }`}>
+              {badge === 'hot' ? '🔥' : '✨'}
+            </span>
+          )}
         </div>
+        
+        {/* Token Info */}
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2">
+            <span className="font-bold text-white truncate text-base group-hover:text-orange-300 transition-colors">
+              {token.name}
+            </span>
+          </div>
+          <div className="text-gray-400 text-sm font-mono">${token.symbol}</div>
+        </div>
+        
+        {/* Market Cap */}
         <div className="text-right flex-shrink-0">
-          <div className="text-green-400 text-sm sm:text-base font-medium">
+          <div className="text-lg font-bold text-transparent bg-clip-text bg-gradient-to-r from-green-400 to-emerald-300">
             {formatValue(mcapSol, solPrice)}
           </div>
-          <div className="text-gray-500 text-xs">mcap</div>
+          <div className="text-gray-500 text-xs uppercase tracking-wide">mcap</div>
         </div>
       </div>
     </Link>
