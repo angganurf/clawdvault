@@ -13,6 +13,7 @@ export default function TokenPage({ params }: { params: Promise<{ mint: string }
   const [amount, setAmount] = useState('');
   const [trading, setTrading] = useState(false);
   const [tradeResult, setTradeResult] = useState<TradeResponse | null>(null);
+  const [copied, setCopied] = useState(false);
 
   // Mock user balance (in real app, fetch from wallet)
   const [userBalance] = useState({
@@ -314,7 +315,20 @@ export default function TokenPage({ params }: { params: Promise<{ mint: string }
 
               {/* Mint Address */}
               <div className="bg-gray-800/50 rounded-xl p-4">
-                <div className="text-gray-500 text-sm mb-2">Mint Address</div>
+                <div className="flex items-center justify-between mb-2">
+                  <div className="text-gray-500 text-sm">Mint Address</div>
+                  <button
+                    onClick={() => {
+                      navigator.clipboard.writeText(token.mint);
+                      setCopied(true);
+                      setTimeout(() => setCopied(false), 2000);
+                    }}
+                    className="text-gray-400 hover:text-white text-sm flex items-center gap-1 transition"
+                    title="Copy to clipboard"
+                  >
+                    {copied ? '✅ Copied!' : '📋 Copy'}
+                  </button>
+                </div>
                 <div className="font-mono text-sm text-orange-400 break-all">{token.mint}</div>
               </div>
             </div>
