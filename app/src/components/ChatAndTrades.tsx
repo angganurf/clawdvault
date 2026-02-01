@@ -307,7 +307,7 @@ export default function ChatAndTrades({ mint, tokenSymbol, trades, onTradesUpdat
   };
 
   return (
-    <div className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden flex flex-col" style={{ height: '480px' }}>
+    <div className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden flex flex-col" style={{ height: '420px' }}>
       {/* Tabs Header */}
       <div className="bg-gray-800/50 border-b border-gray-800">
         <div className="flex">
