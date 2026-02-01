@@ -11,8 +11,6 @@ import {
   Transaction,
   TransactionInstruction,
   SystemProgram,
-  SYSVAR_RENT_PUBKEY,
-  Keypair,
   LAMPORTS_PER_SOL,
 } from '@solana/web3.js';
 import {
@@ -20,26 +18,24 @@ import {
   ASSOCIATED_TOKEN_PROGRAM_ID,
   getAssociatedTokenAddress,
 } from '@solana/spl-token';
-import * as anchor from '@coral-xyz/anchor';
-import { BN } from 'bn.js';
 
-// Program ID - update after deployment
+// Program ID - UPDATE AFTER DEPLOYMENT
 export const PROGRAM_ID = new PublicKey('C1awdVau1tXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX');
 
 // Seeds
 const CONFIG_SEED = Buffer.from('config');
 const CURVE_SEED = Buffer.from('bonding_curve');
 const VAULT_SEED = Buffer.from('sol_vault');
-const TOKEN_VAULT_SEED = Buffer.from('token_vault');
 
 // Constants matching the program
-export const TOTAL_SUPPLY = new BN('1000000000000000'); // 1B * 10^6
-export const INITIAL_VIRTUAL_SOL = new BN('30000000000'); // 30 SOL
+export const TOTAL_SUPPLY = BigInt('1000000000000000'); // 1B * 10^6
+export const INITIAL_VIRTUAL_SOL = BigInt('30000000000'); // 30 SOL
 export const INITIAL_VIRTUAL_TOKENS = TOTAL_SUPPLY;
-export const GRADUATION_THRESHOLD = new BN('120000000000'); // 120 SOL
+export const GRADUATION_THRESHOLD = BigInt('120000000000'); // 120 SOL
 export const PROTOCOL_FEE_BPS = 50;
 export const CREATOR_FEE_BPS = 50;
 export const TOTAL_FEE_BPS = 100;
+export const BPS_DENOMINATOR = 10000;
 
 /**
  * Find the config PDA
@@ -84,13 +80,13 @@ export async function findTokenVaultAddress(
 export interface BondingCurveState {
   creator: PublicKey;
   mint: PublicKey;
-  virtualSolReserves: BN;
-  virtualTokenReserves: BN;
-  realSolReserves: BN;
-  realTokenReserves: BN;
-  tokenTotalSupply: BN;
+  virtualSolReserves: bigint;
+  virtualTokenReserves: bigint;
+  realSolReserves: bigint;
+  realTokenReserves: bigint;
+  tokenTotalSupply: bigint;
   graduated: boolean;
-  createdAt: BN;
+  createdAt: bigint;
   bump: number;
   solVaultBump: number;
   tokenVaultBump: number;
@@ -100,68 +96,97 @@ export interface BondingCurveState {
  * Calculate tokens out for a buy
  */
 export function calculateBuyTokensOut(
-  solAmount: BN,
-  virtualSolReserves: BN,
-  virtualTokenReserves: BN
-): { tokensOut: BN; priceImpact: number } {
-  const newVirtualSol = virtualSolReserves.add(solAmount);
-  const invariant = virtualSolReserves.mul(virtualTokenReserves);
-  const newVirtualTokens = invariant.div(newVirtualSol);
-  const tokensOut = virtualTokenReserves.sub(newVirtualTokens);
+  solAmount: bigint,
+  virtualSolReserves: bigint,
+  virtualTokenReserves: bigint
+): { tokensOut: bigint; fee: bigint; priceImpact: number } {
+  // Calculate fee first
+  const fee = (solAmount * BigInt(TOTAL_FEE_BPS)) / BigInt(BPS_DENOMINATOR);
+  const solAfterFee = solAmount - fee;
+  
+  // Constant product formula
+  const newVirtualSol = virtualSolReserves + solAfterFee;
+  const invariant = virtualSolReserves * virtualTokenReserves;
+  const newVirtualTokens = invariant / newVirtualSol;
+  const tokensOut = virtualTokenReserves - newVirtualTokens;
   
   // Calculate price impact
-  const spotPrice = virtualSolReserves.toNumber() / virtualTokenReserves.toNumber();
-  const avgPrice = solAmount.toNumber() / tokensOut.toNumber();
+  const spotPrice = Number(virtualSolReserves) / Number(virtualTokenReserves);
+  const avgPrice = Number(solAfterFee) / Number(tokensOut);
   const priceImpact = ((avgPrice - spotPrice) / spotPrice) * 100;
   
-  return { tokensOut, priceImpact };
+  return { tokensOut, fee, priceImpact };
 }
 
 /**
  * Calculate SOL out for a sell
  */
 export function calculateSellSolOut(
-  tokenAmount: BN,
-  virtualSolReserves: BN,
-  virtualTokenReserves: BN
-): { solOut: BN; priceImpact: number } {
-  const newVirtualTokens = virtualTokenReserves.add(tokenAmount);
-  const invariant = virtualSolReserves.mul(virtualTokenReserves);
-  const newVirtualSol = invariant.div(newVirtualTokens);
-  const solOutGross = virtualSolReserves.sub(newVirtualSol);
+  tokenAmount: bigint,
+  virtualSolReserves: bigint,
+  virtualTokenReserves: bigint
+): { solOut: bigint; fee: bigint; priceImpact: number } {
+  // Constant product formula
+  const newVirtualTokens = virtualTokenReserves + tokenAmount;
+  const invariant = virtualSolReserves * virtualTokenReserves;
+  const newVirtualSol = invariant / newVirtualTokens;
+  const solOutGross = virtualSolReserves - newVirtualSol;
   
-  // Apply fee
-  const fee = solOutGross.mul(new BN(TOTAL_FEE_BPS)).div(new BN(10000));
-  const solOut = solOutGross.sub(fee);
+  // Calculate fee
+  const fee = (solOutGross * BigInt(TOTAL_FEE_BPS)) / BigInt(BPS_DENOMINATOR);
+  const solOut = solOutGross - fee;
   
   // Calculate price impact
-  const spotPrice = virtualSolReserves.toNumber() / virtualTokenReserves.toNumber();
-  const avgPrice = solOutGross.toNumber() / tokenAmount.toNumber();
+  const spotPrice = Number(virtualSolReserves) / Number(virtualTokenReserves);
+  const avgPrice = Number(solOutGross) / Number(tokenAmount);
   const priceImpact = ((spotPrice - avgPrice) / spotPrice) * 100;
   
-  return { solOut, priceImpact };
+  return { solOut, fee, priceImpact };
 }
 
 /**
  * Calculate current token price in SOL
  */
 export function calculatePrice(
-  virtualSolReserves: BN,
-  virtualTokenReserves: BN
+  virtualSolReserves: bigint,
+  virtualTokenReserves: bigint
 ): number {
-  return virtualSolReserves.toNumber() / virtualTokenReserves.toNumber();
+  return Number(virtualSolReserves) / Number(virtualTokenReserves);
 }
 
 /**
  * Calculate market cap in SOL
  */
 export function calculateMarketCap(
-  virtualSolReserves: BN,
-  virtualTokenReserves: BN,
-  totalSupply: BN
+  virtualSolReserves: bigint,
+  virtualTokenReserves: bigint,
+  totalSupply: bigint = TOTAL_SUPPLY
 ): number {
   const price = calculatePrice(virtualSolReserves, virtualTokenReserves);
-  return price * totalSupply.toNumber();
+  return price * Number(totalSupply);
+}
+
+/**
+ * Calculate progress to graduation (0-100%)
+ */
+export function calculateGraduationProgress(realSolReserves: bigint): number {
+  return (Number(realSolReserves) / Number(GRADUATION_THRESHOLD)) * 100;
+}
+
+/**
+ * Read u64 from buffer (little-endian)
+ */
+function readU64(buffer: Buffer, offset: number): bigint {
+  return buffer.readBigUInt64LE(offset);
+}
+
+/**
+ * Write u64 to buffer (little-endian)
+ */
+function writeU64(value: bigint): Buffer {
+  const buf = Buffer.alloc(8);
+  buf.writeBigUInt64LE(value);
+  return buf;
 }
 
 /**
@@ -190,13 +215,13 @@ export class ClawdVaultClient {
     return {
       creator: new PublicKey(data.slice(0, 32)),
       mint: new PublicKey(data.slice(32, 64)),
-      virtualSolReserves: new BN(data.slice(64, 72), 'le'),
-      virtualTokenReserves: new BN(data.slice(72, 80), 'le'),
-      realSolReserves: new BN(data.slice(80, 88), 'le'),
-      realTokenReserves: new BN(data.slice(88, 96), 'le'),
-      tokenTotalSupply: new BN(data.slice(96, 104), 'le'),
+      virtualSolReserves: readU64(Buffer.from(data), 64),
+      virtualTokenReserves: readU64(Buffer.from(data), 72),
+      realSolReserves: readU64(Buffer.from(data), 80),
+      realTokenReserves: readU64(Buffer.from(data), 88),
+      tokenTotalSupply: readU64(Buffer.from(data), 96),
       graduated: data[104] === 1,
-      createdAt: new BN(data.slice(105, 113), 'le'),
+      createdAt: readU64(Buffer.from(data), 105),
       bump: data[113],
       solVaultBump: data[114],
       tokenVaultBump: data[115],
@@ -205,12 +230,14 @@ export class ClawdVaultClient {
   
   /**
    * Build a buy transaction
+   * 
+   * Anchor discriminator for "buy": sha256("global:buy")[0..8]
    */
   async buildBuyTransaction(
     buyer: PublicKey,
     mint: PublicKey,
-    solAmount: BN,
-    minTokensOut: BN,
+    solAmount: bigint,
+    minTokensOut: bigint,
     creator: PublicKey,
     feeRecipient: PublicKey
   ): Promise<Transaction> {
@@ -220,13 +247,13 @@ export class ClawdVaultClient {
     const tokenVault = await findTokenVaultAddress(mint, curvePDA);
     const buyerTokenAccount = await getAssociatedTokenAddress(mint, buyer);
     
-    // Build instruction data
-    // Discriminator for "buy" (8 bytes) + sol_amount (8) + min_tokens_out (8)
-    const discriminator = Buffer.from([0x66, 0x06, 0x3d, 0x12, 0x01, 0xda, 0xeb, 0xea]); // anchor discriminator for "buy"
+    // Anchor discriminator for "buy" = first 8 bytes of sha256("global:buy")
+    const discriminator = Buffer.from([102, 6, 61, 18, 1, 218, 235, 234]);
+    
     const data = Buffer.concat([
       discriminator,
-      solAmount.toArrayLike(Buffer, 'le', 8),
-      minTokensOut.toArrayLike(Buffer, 'le', 8),
+      writeU64(solAmount),
+      writeU64(minTokensOut),
     ]);
     
     const instruction = new TransactionInstruction({
@@ -257,12 +284,14 @@ export class ClawdVaultClient {
   
   /**
    * Build a sell transaction
+   * 
+   * Anchor discriminator for "sell": sha256("global:sell")[0..8]
    */
   async buildSellTransaction(
     seller: PublicKey,
     mint: PublicKey,
-    tokenAmount: BN,
-    minSolOut: BN,
+    tokenAmount: bigint,
+    minSolOut: bigint,
     creator: PublicKey,
     feeRecipient: PublicKey
   ): Promise<Transaction> {
@@ -272,12 +301,13 @@ export class ClawdVaultClient {
     const tokenVault = await findTokenVaultAddress(mint, curvePDA);
     const sellerTokenAccount = await getAssociatedTokenAddress(mint, seller);
     
-    // Build instruction data
-    const discriminator = Buffer.from([0xb4, 0x4b, 0x17, 0x0b, 0xe6, 0x1a, 0x59, 0x73]); // anchor discriminator for "sell"
+    // Anchor discriminator for "sell" = first 8 bytes of sha256("global:sell")
+    const discriminator = Buffer.from([51, 230, 133, 164, 1, 127, 131, 173]);
+    
     const data = Buffer.concat([
       discriminator,
-      tokenAmount.toArrayLike(Buffer, 'le', 8),
-      minSolOut.toArrayLike(Buffer, 'le', 8),
+      writeU64(tokenAmount),
+      writeU64(minSolOut),
     ]);
     
     const instruction = new TransactionInstruction({
