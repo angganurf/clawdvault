@@ -1,20 +1,12 @@
 import { NextResponse } from 'next/server';
-import { createToken, validateApiKey } from '@/lib/store';
+import { createToken } from '@/lib/db';
 import { CreateTokenRequest, CreateTokenResponse } from '@/lib/types';
 
 export async function POST(request: Request) {
   try {
-    // Check API key (optional for testing)
+    // Check API key (optional for now)
     const authHeader = request.headers.get('Authorization');
-    const apiKey = authHeader?.replace('Bearer ', '');
-    
-    // For production, require valid API key
-    // if (!apiKey || !validateApiKey(apiKey)) {
-    //   return NextResponse.json(
-    //     { error: 'Invalid or missing API key' },
-    //     { status: 401 }
-    //   );
-    // }
+    const apiKey = authHeader?.replace('Bearer ', '') || 'anonymous';
     
     const body: CreateTokenRequest = await request.json();
     
@@ -43,14 +35,24 @@ export async function POST(request: Request) {
     }
     
     // Create token
-    const token = createToken({
+    const token = await createToken({
       name: body.name,
       symbol: body.symbol,
       description: body.description,
       image: body.image,
-      creator: apiKey || 'anonymous',
-      creator_name: apiKey ? undefined : 'Anonymous',
+      creator: apiKey,
+      creator_name: apiKey === 'anonymous' ? 'Anonymous' : undefined,
+      twitter: body.twitter,
+      telegram: body.telegram,
+      website: body.website,
     });
+    
+    if (!token) {
+      return NextResponse.json(
+        { success: false, error: 'Failed to create token' },
+        { status: 500 }
+      );
+    }
     
     const response: CreateTokenResponse = {
       success: true,

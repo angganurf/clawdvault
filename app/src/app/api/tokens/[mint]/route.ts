@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getToken, getTokenTrades } from '@/lib/store';
+import { getToken, getTokenTrades } from '@/lib/db';
 
 export async function GET(
   request: Request,
@@ -7,7 +7,7 @@ export async function GET(
 ) {
   try {
     const { mint } = await params;
-    const token = getToken(mint);
+    const token = await getToken(mint);
     
     if (!token) {
       return NextResponse.json(
@@ -16,7 +16,7 @@ export async function GET(
       );
     }
     
-    const trades = getTokenTrades(mint).slice(0, 50);
+    const trades = await getTokenTrades(mint, 50);
     
     return NextResponse.json({
       token,

@@ -1,12 +1,11 @@
 import { NextResponse } from 'next/server';
-import { executeTrade, getToken, validateApiKey } from '@/lib/store';
+import { executeTrade, getToken } from '@/lib/db';
 import { TradeRequest, TradeResponse } from '@/lib/types';
 
 export async function POST(request: Request) {
   try {
-    // Check API key
     const authHeader = request.headers.get('Authorization');
-    const apiKey = authHeader?.replace('Bearer ', '');
+    const apiKey = authHeader?.replace('Bearer ', '') || 'anonymous';
     
     const body: TradeRequest = await request.json();
     
@@ -35,7 +34,7 @@ export async function POST(request: Request) {
     }
     
     // Check token exists
-    const token = getToken(body.mint);
+    const token = await getToken(body.mint);
     if (!token) {
       return NextResponse.json(
         { success: false, error: 'Token not found' },
@@ -52,11 +51,11 @@ export async function POST(request: Request) {
     }
     
     // Execute trade
-    const result = executeTrade(
+    const result = await executeTrade(
       body.mint,
       body.type,
       body.amount,
-      apiKey || 'anonymous'
+      apiKey
     );
     
     if (!result) {
@@ -100,7 +99,7 @@ export async function GET(request: Request) {
       );
     }
     
-    const token = getToken(mint);
+    const token = await getToken(mint);
     if (!token) {
       return NextResponse.json(
         { error: 'Token not found' },
@@ -112,7 +111,6 @@ export async function GET(request: Request) {
     let priceImpact: number;
     
     if (type === 'buy') {
-      // Calculate tokens out
       const newVirtualSol = token.virtual_sol_reserves + amount;
       const invariant = token.virtual_sol_reserves * token.virtual_token_reserves;
       const newVirtualTokens = invariant / newVirtualSol;
@@ -121,7 +119,6 @@ export async function GET(request: Request) {
       const newPrice = newVirtualSol / newVirtualTokens;
       priceImpact = ((newPrice - token.price_sol) / token.price_sol) * 100;
     } else {
-      // Calculate SOL out
       const newVirtualTokens = token.virtual_token_reserves + amount;
       const invariant = token.virtual_sol_reserves * token.virtual_token_reserves;
       const newVirtualSol = invariant / newVirtualTokens;
