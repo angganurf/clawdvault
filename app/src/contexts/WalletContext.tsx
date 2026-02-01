@@ -67,27 +67,41 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    try {
-      // Use Helius or public RPC to get balance
-      const rpcUrl = process.env.NEXT_PUBLIC_RPC_URL || 'https://api.mainnet-beta.solana.com';
-      const response = await fetch(rpcUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          jsonrpc: '2.0',
-          id: 1,
-          method: 'getBalance',
-          params: [publicKey],
-        }),
-      });
-      const data = await response.json();
-      if (data.result?.value !== undefined) {
-        // Convert lamports to SOL
-        setBalance(data.result.value / 1e9);
+    // Try multiple RPCs in case of rate limiting
+    const rpcUrls = [
+      process.env.NEXT_PUBLIC_RPC_URL,
+      'https://api.mainnet-beta.solana.com',
+      'https://solana-mainnet.g.alchemy.com/v2/demo',
+    ].filter(Boolean) as string[];
+
+    for (const rpcUrl of rpcUrls) {
+      try {
+        const response = await fetch(rpcUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            jsonrpc: '2.0',
+            id: 1,
+            method: 'getBalance',
+            params: [publicKey],
+          }),
+        });
+        const data = await response.json();
+        if (data.result?.value !== undefined) {
+          // Convert lamports to SOL
+          setBalance(data.result.value / 1e9);
+          return; // Success, stop trying
+        }
+        if (data.error) {
+          console.warn(`RPC error from ${rpcUrl}:`, data.error);
+        }
+      } catch (err) {
+        console.warn(`Failed to fetch balance from ${rpcUrl}:`, err);
       }
-    } catch (err) {
-      console.error('Failed to fetch balance:', err);
     }
+    // If all RPCs failed, set balance to 0 as fallback
+    console.error('All RPCs failed to fetch balance');
+    setBalance(0);
   }, [publicKey]);
 
   // Connect wallet
