@@ -675,16 +675,31 @@ export default function TokenPage({ params }: { params: Promise<{ mint: string }
                       {trading ? 'Processing...' : tradeType === 'buy' ? 'Buy Tokens' : 'Sell Tokens'}
                     </button>
                   ) : (
-                    <button
-                      onClick={connect}
-                      className={`w-full py-3 rounded-lg font-semibold transition ${
-                        tradeType === 'buy'
-                          ? 'bg-green-600 hover:bg-green-500 text-white'
-                          : 'bg-red-600 hover:bg-red-500 text-white'
-                      }`}
-                    >
-                      Connect Wallet to {tradeType === 'buy' ? 'Buy' : 'Sell'}
-                    </button>
+                    <div className="space-y-3">
+                      <button
+                        onClick={connect}
+                        className="w-full py-3 rounded-lg font-semibold transition bg-gradient-to-r from-purple-600 to-purple-500 hover:from-purple-500 hover:to-purple-400 text-white flex items-center justify-center gap-2"
+                      >
+                        <svg className="w-5 h-5" viewBox="0 0 128 128" fill="none">
+                          <rect width="128" height="128" rx="26" fill="url(#pg)"/>
+                          <path fillRule="evenodd" clipRule="evenodd" d="M97.6 52.4C97.6 67.5 85.4 79.7 70.3 79.7H57.1C56.2 79.7 55.4 80.3 55.2 81.2L52.5 94.9C52.3 95.8 51.5 96.4 50.6 96.4H39.6C38.5 96.4 37.7 95.4 37.9 94.3L49.3 35.1C49.5 34.2 50.3 33.6 51.2 33.6H74C86.1 33.6 97.6 41.6 97.6 52.4Z" fill="white"/>
+                          <defs><linearGradient id="pg" x1="0" y1="0" x2="128" y2="128"><stop stopColor="#534BB1"/><stop offset="1" stopColor="#551BF9"/></linearGradient></defs>
+                        </svg>
+                        Connect Phantom Wallet
+                      </button>
+                      <div className="text-gray-500 text-xs text-center">
+                        <p>Don&apos;t have Phantom?{' '}
+                          <a 
+                            href="https://phantom.app/" 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            className="text-purple-400 hover:text-purple-300 underline"
+                          >
+                            Download here
+                          </a>
+                        </p>
+                      </div>
+                    </div>
                   )}
 
                   <div className="text-gray-500 text-xs text-center mt-4">

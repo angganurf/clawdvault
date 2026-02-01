@@ -4,6 +4,22 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import { useWallet } from '@/contexts/WalletContext';
 import { authenticatedPost } from '@/lib/signRequest';
 
+// Official Phantom logo SVG (simplified)
+function PhantomIcon({ className = "w-5 h-5" }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 128 128" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <rect width="128" height="128" rx="26" fill="url(#phantom-grad)"/>
+      <path fillRule="evenodd" clipRule="evenodd" d="M97.6 52.4C97.6 67.5 85.4 79.7 70.3 79.7H57.1C56.2 79.7 55.4 80.3 55.2 81.2L52.5 94.9C52.3 95.8 51.5 96.4 50.6 96.4H39.6C38.5 96.4 37.7 95.4 37.9 94.3L49.3 35.1C49.5 34.2 50.3 33.6 51.2 33.6H74C86.1 33.6 97.6 41.6 97.6 52.4ZM70.9 48.3H63.7C62.8 48.3 62 48.9 61.8 49.8L59.1 63.5C58.9 64.4 59.7 65.2 60.6 65.2H66.9C73.2 65.2 78.3 60.1 78.3 53.8C78.3 50.1 75.1 48.3 70.9 48.3Z" fill="white"/>
+      <defs>
+        <linearGradient id="phantom-grad" x1="0" y1="0" x2="128" y2="128" gradientUnits="userSpaceOnUse">
+          <stop stopColor="#534BB1"/>
+          <stop offset="1" stopColor="#551BF9"/>
+        </linearGradient>
+      </defs>
+    </svg>
+  );
+}
+
 function shortenAddress(address: string): string {
   return `${address.slice(0, 4)}...${address.slice(-4)}`;
 }
@@ -90,17 +106,18 @@ export default function WalletButton() {
       <button
         onClick={connect}
         disabled={connecting}
-        className="bg-gradient-to-r from-purple-600 to-purple-500 hover:from-purple-500 hover:to-purple-400 disabled:opacity-50 text-white px-4 py-2 rounded-lg font-medium transition flex items-center gap-2"
+        title="Connect your Phantom wallet to trade tokens"
+        className="bg-gradient-to-r from-purple-600 to-purple-500 hover:from-purple-500 hover:to-purple-400 disabled:opacity-50 text-white px-4 py-2 rounded-lg font-medium transition flex items-center gap-2 group"
       >
         {connecting ? (
           <>
-            <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-            Connecting...
+            <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+            <span>Connecting...</span>
           </>
         ) : (
           <>
-            <span>👻</span>
-            Connect Wallet
+            <PhantomIcon className="w-5 h-5 group-hover:scale-110 transition-transform" />
+            <span>Connect Wallet</span>
           </>
         )}
       </button>

@@ -37,6 +37,11 @@ const PLATFORM_WALLET = process.env.PLATFORM_WALLET_SECRET
   ? Keypair.fromSecretKey(bs58.decode(process.env.PLATFORM_WALLET_SECRET))
   : null;
 
+// Fee recipient wallet (receives protocol fees - separate from platform wallet)
+const FEE_RECIPIENT_WALLET = process.env.FEE_RECIPIENT_WALLET 
+  ? new PublicKey(process.env.FEE_RECIPIENT_WALLET)
+  : PLATFORM_WALLET?.publicKey || null;
+
 export interface CreateTokenOnChainParams {
   name: string;
   symbol: string;
@@ -538,13 +543,29 @@ export async function completeSellTransaction(
   // Send SOL to seller
   const sellerPubkey = new PublicKey(seller);
   
-  const solTx = new Transaction().add(
+  const solTx = new Transaction();
+  
+  // Transfer SOL to seller (minus fees)
+  solTx.add(
     SystemProgram.transfer({
       fromPubkey: PLATFORM_WALLET.publicKey,
       toPubkey: sellerPubkey,
       lamports: Math.floor(solToSend * LAMPORTS_PER_SOL),
     })
   );
+  
+  // Transfer protocol fee to fee recipient (if different from platform wallet)
+  if (FEE_RECIPIENT_WALLET && !FEE_RECIPIENT_WALLET.equals(PLATFORM_WALLET.publicKey)) {
+    const protocolFee = feeAmount * (PROTOCOL_FEE_BPS / TOTAL_FEE_BPS);
+    solTx.add(
+      SystemProgram.transfer({
+        fromPubkey: PLATFORM_WALLET.publicKey,
+        toPubkey: FEE_RECIPIENT_WALLET,
+        lamports: Math.floor(protocolFee * LAMPORTS_PER_SOL),
+      })
+    );
+    console.log(`💰 Protocol fee: ${protocolFee.toFixed(6)} SOL → ${FEE_RECIPIENT_WALLET.toBase58()}`);
+  }
   
   const solSignature = await sendAndConfirmTransaction(
     connection,
@@ -568,4 +589,11 @@ export async function completeSellTransaction(
  */
 export function getPlatformWalletPubkey(): string | null {
   return PLATFORM_WALLET?.publicKey.toBase58() || null;
+}
+
+/**
+ * Get fee recipient wallet public key
+ */
+export function getFeeRecipientPubkey(): string | null {
+  return FEE_RECIPIENT_WALLET?.toBase58() || null;
 }
