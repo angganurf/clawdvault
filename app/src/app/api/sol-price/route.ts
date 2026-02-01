@@ -1,21 +1,24 @@
 import { NextResponse } from 'next/server';
 
 // Cache the price server-side
-let cachedPrice: number = 100;
+let cachedPrice: number | null = null;
 let lastFetch: number = 0;
 const CACHE_DURATION = 60 * 1000; // 60 seconds
+const STALE_DURATION = 5 * 60 * 1000; // Consider stale after 5 minutes
 
 export const dynamic = 'force-dynamic';
 
 export async function GET() {
   const now = Date.now();
+  const age = now - lastFetch;
   
   // Return cached price if still valid
-  if (now - lastFetch < CACHE_DURATION && cachedPrice > 0) {
+  if (age < CACHE_DURATION && cachedPrice !== null) {
     return NextResponse.json({ 
       price: cachedPrice, 
+      valid: true,
       cached: true,
-      age: Math.floor((now - lastFetch) / 1000)
+      age: Math.floor(age / 1000)
     });
   }
 
@@ -29,14 +32,32 @@ export async function GET() {
     if (data.data?.SOL?.price) {
       cachedPrice = data.data.SOL.price;
       lastFetch = now;
+      return NextResponse.json({ 
+        price: cachedPrice, 
+        valid: true,
+        cached: false,
+        age: 0
+      });
     }
   } catch (err) {
     console.error('Failed to fetch SOL price:', err);
-    // Keep using cached price on error
   }
 
+  // If we have a recent-ish cached price, use it but mark as potentially stale
+  if (cachedPrice !== null && age < STALE_DURATION) {
+    return NextResponse.json({ 
+      price: cachedPrice, 
+      valid: true,
+      cached: true,
+      stale: true,
+      age: Math.floor(age / 1000)
+    });
+  }
+
+  // No valid price available
   return NextResponse.json({ 
-    price: cachedPrice, 
+    price: null, 
+    valid: false,
     cached: false,
     age: 0
   });

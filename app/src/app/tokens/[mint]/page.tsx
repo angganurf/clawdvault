@@ -15,7 +15,7 @@ export default function TokenPage({ params }: { params: Promise<{ mint: string }
   const [token, setToken] = useState<Token | null>(null);
   const [trades, setTrades] = useState<Trade[]>([]);
   const [loading, setLoading] = useState(true);
-  const [solPrice, setSolPrice] = useState<number>(100); // Default fallback
+  const [solPrice, setSolPrice] = useState<number | null>(null);
   const [tradeType, setTradeType] = useState<'buy' | 'sell'>('buy');
   const [amount, setAmount] = useState('');
   const [trading, setTrading] = useState(false);
@@ -52,17 +52,13 @@ export default function TokenPage({ params }: { params: Promise<{ mint: string }
 
   const fetchSolPrice = async () => {
     try {
-      // Use our cached internal endpoint
       const res = await fetch('/api/sol-price');
       const data = await res.json();
-      if (data.price) {
-        setSolPrice(data.price);
-        return;
-      }
+      setSolPrice(data.valid ? data.price : null);
     } catch (err) {
-      console.warn('Price fetch failed, using fallback');
+      console.warn('Price fetch failed');
+      setSolPrice(null);
     }
-    setSolPrice(100);
   };
 
   useEffect(() => {
@@ -181,6 +177,19 @@ export default function TokenPage({ params }: { params: Promise<{ mint: string }
     return '$' + n.toFixed(2);
   };
 
+  const formatSol = (n: number) => {
+    if (n >= 1000000) return (n / 1000000).toFixed(1) + 'M SOL';
+    if (n >= 1000) return (n / 1000).toFixed(1) + 'K SOL';
+    return n.toFixed(2) + ' SOL';
+  };
+
+  const formatValue = (solAmount: number) => {
+    if (solPrice !== null) {
+      return formatUsd(solAmount * solPrice);
+    }
+    return formatSol(solAmount);
+  };
+
   const progressPercent = token 
     ? Math.min((token.real_sol_reserves / 85) * 100, 100)
     : 0;
@@ -291,18 +300,24 @@ export default function TokenPage({ params }: { params: Promise<{ mint: string }
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <div className="bg-gray-800/50 rounded-xl p-4">
                   <div className="text-gray-500 text-sm mb-1">Price</div>
-                  <div className="text-white font-mono text-lg">{formatUsd(token.price_sol * solPrice)}</div>
-                  <div className="text-gray-500 font-mono text-xs">{formatPrice(token.price_sol)} SOL</div>
+                  <div className="text-white font-mono text-lg">{formatValue(token.price_sol)}</div>
+                  {solPrice !== null && (
+                    <div className="text-gray-500 font-mono text-xs">{formatPrice(token.price_sol)} SOL</div>
+                  )}
                 </div>
                 <div className="bg-gray-800/50 rounded-xl p-4">
                   <div className="text-gray-500 text-sm mb-1">Market Cap</div>
-                  <div className="text-orange-400 font-mono text-lg">{formatUsd(token.market_cap_sol * solPrice)}</div>
-                  <div className="text-gray-500 font-mono text-xs">{formatNumber(token.market_cap_sol)} SOL</div>
+                  <div className="text-orange-400 font-mono text-lg">{formatValue(token.market_cap_sol)}</div>
+                  {solPrice !== null && (
+                    <div className="text-gray-500 font-mono text-xs">{formatNumber(token.market_cap_sol)} SOL</div>
+                  )}
                 </div>
                 <div className="bg-gray-800/50 rounded-xl p-4">
                   <div className="text-gray-500 text-sm mb-1">24h Volume</div>
-                  <div className="text-blue-400 font-mono text-lg">{formatUsd((token.volume_24h || 0) * solPrice)}</div>
-                  <div className="text-gray-500 font-mono text-xs">{formatNumber(token.volume_24h || 0)} SOL</div>
+                  <div className="text-blue-400 font-mono text-lg">{formatValue(token.volume_24h || 0)}</div>
+                  {solPrice !== null && (
+                    <div className="text-gray-500 font-mono text-xs">{formatNumber(token.volume_24h || 0)} SOL</div>
+                  )}
                 </div>
                 <div className="bg-gray-800/50 rounded-xl p-4">
                   <div className="text-gray-500 text-sm mb-1">Holders</div>
@@ -323,8 +338,8 @@ export default function TokenPage({ params }: { params: Promise<{ mint: string }
                   />
                 </div>
                 <div className="flex justify-between text-xs text-gray-500 mt-2">
-                  <span>{formatUsd(token.real_sol_reserves * solPrice)} raised</span>
-                  <span>{formatUsd(85 * solPrice)} goal</span>
+                  <span>{formatValue(token.real_sol_reserves)} raised</span>
+                  <span>{formatValue(85)} goal</span>
                 </div>
               </div>
 

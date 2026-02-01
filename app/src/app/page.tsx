@@ -8,7 +8,7 @@ import Footer from '@/components/Footer'
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
 
-async function getSolPrice(): Promise<number> {
+async function getSolPrice(): Promise<number | null> {
   try {
     // Use our cached internal endpoint
     const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
@@ -16,9 +16,9 @@ async function getSolPrice(): Promise<number> {
       next: { revalidate: 30 } 
     });
     const data = await res.json();
-    return data.price || 100;
+    return data.valid ? data.price : null;
   } catch {
-    return 100; // Fallback
+    return null; // No valid price
   }
 }
 
@@ -112,6 +112,19 @@ function formatUsd(num: number): string {
   return `$${num.toFixed(2)}`
 }
 
+function formatSol(num: number): string {
+  if (num >= 1000000) return `${(num / 1000000).toFixed(1)}M SOL`
+  if (num >= 1000) return `${(num / 1000).toFixed(1)}K SOL`
+  return `${num.toFixed(2)} SOL`
+}
+
+function formatValue(solAmount: number, solPrice: number | null): string {
+  if (solPrice !== null) {
+    return formatUsd(solAmount * solPrice);
+  }
+  return formatSol(solAmount);
+}
+
 const TOTAL_SUPPLY = 1073000000
 
 function getMarketCap(token: any): number {
@@ -121,9 +134,8 @@ function getMarketCap(token: any): number {
   return price * TOTAL_SUPPLY
 }
 
-function TokenCard({ token, badge, solPrice }: { token: any, badge?: string, solPrice: number }) {
+function TokenCard({ token, badge, solPrice }: { token: any, badge?: string, solPrice: number | null }) {
   const mcapSol = getMarketCap(token)
-  const mcapUsd = mcapSol * solPrice
   
   return (
     <Link 
@@ -155,7 +167,7 @@ function TokenCard({ token, badge, solPrice }: { token: any, badge?: string, sol
         </div>
         <div className="text-right">
           <div className="text-green-400 text-sm font-medium">
-            {formatUsd(mcapUsd)}
+            {formatValue(mcapSol, solPrice)}
           </div>
           <div className="text-gray-500 text-xs">mcap</div>
         </div>
@@ -222,7 +234,7 @@ export default async function Home() {
               <div className="text-gray-500 text-sm">Graduated</div>
             </div>
             <div className="bg-gray-800/30 rounded-xl p-4 text-center">
-              <div className="text-2xl font-bold text-blue-400">{formatUsd(data.totalVolume * data.solPrice)}</div>
+              <div className="text-2xl font-bold text-blue-400">{formatValue(data.totalVolume, data.solPrice)}</div>
               <div className="text-gray-500 text-sm">Volume</div>
             </div>
             <div className="bg-gray-800/30 rounded-xl p-4 text-center">
@@ -267,7 +279,7 @@ export default async function Home() {
                 </div>
                 <div className="text-right">
                   <div className="text-2xl font-bold text-yellow-400">
-                    {formatUsd(getMarketCap(data.kingToken) * data.solPrice)}
+                    {formatValue(getMarketCap(data.kingToken), data.solPrice)}
                   </div>
                   <div className="text-gray-500 text-sm">Market Cap</div>
                 </div>

@@ -14,7 +14,7 @@ export default function TokensPage() {
   const [sort, setSort] = useState('created_at');
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState<FilterTab>('all');
-  const [solPrice, setSolPrice] = useState<number>(100);
+  const [solPrice, setSolPrice] = useState<number | null>(null);
 
   useEffect(() => {
     fetchTokens();
@@ -23,17 +23,13 @@ export default function TokensPage() {
 
   const fetchSolPrice = async () => {
     try {
-      // Use our cached internal endpoint
       const res = await fetch('/api/sol-price');
       const data = await res.json();
-      if (data.price) {
-        setSolPrice(data.price);
-        return;
-      }
+      setSolPrice(data.valid ? data.price : null);
     } catch (err) {
-      console.warn('Price fetch failed, using fallback');
+      console.warn('Price fetch failed');
+      setSolPrice(null);
     }
-    setSolPrice(100);
   };
 
   const fetchTokens = async () => {
@@ -90,6 +86,20 @@ export default function TokensPage() {
     if (n >= 0.01) return '$' + n.toFixed(2);
     if (n >= 0.0001) return '$' + n.toFixed(4);
     return '<$0.0001';
+  };
+
+  const formatSol = (n: number) => {
+    if (n >= 1000000) return (n / 1000000).toFixed(1) + 'M SOL';
+    if (n >= 1000) return (n / 1000).toFixed(1) + 'K SOL';
+    if (n >= 0.01) return n.toFixed(2) + ' SOL';
+    return n.toFixed(4) + ' SOL';
+  };
+
+  const formatValue = (solAmount: number) => {
+    if (solPrice !== null) {
+      return formatUsd(solAmount * solPrice);
+    }
+    return formatSol(solAmount);
   };
 
   const formatPrice = (price: number) => {
@@ -275,15 +285,15 @@ export default function TokensPage() {
 
                   {/* Stats */}
                   <div className="text-right hidden sm:block">
-                    <div className="text-white font-mono">{formatUsd(token.price_sol * solPrice)}</div>
+                    <div className="text-white font-mono">{formatValue(token.price_sol)}</div>
                     <div className="text-gray-500 text-sm">Price</div>
                   </div>
                   <div className="text-right hidden md:block">
-                    <div className="text-orange-400 font-mono">{formatUsd(token.market_cap_sol * solPrice)}</div>
+                    <div className="text-orange-400 font-mono">{formatValue(token.market_cap_sol)}</div>
                     <div className="text-gray-500 text-sm">MCap</div>
                   </div>
                   <div className="text-right hidden lg:block">
-                    <div className="text-blue-400 font-mono">{formatUsd((token.volume_24h || 0) * solPrice)}</div>
+                    <div className="text-blue-400 font-mono">{formatValue(token.volume_24h || 0)}</div>
                     <div className="text-gray-500 text-sm">24h Vol</div>
                   </div>
                   <div className="text-right hidden lg:block">
