@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, use } from 'react';
+import { useState, useEffect, use, useMemo } from 'react';
 import Link from 'next/link';
 import { Token, Trade, TradeResponse } from '@/lib/types';
 
@@ -13,6 +13,12 @@ export default function TokenPage({ params }: { params: Promise<{ mint: string }
   const [amount, setAmount] = useState('');
   const [trading, setTrading] = useState(false);
   const [tradeResult, setTradeResult] = useState<TradeResponse | null>(null);
+
+  // Mock user balance (in real app, fetch from wallet)
+  const [userBalance] = useState({
+    sol: 10.5,
+    tokens: 1000000, // User owns 1M tokens
+  });
 
   useEffect(() => {
     fetchToken();
@@ -32,6 +38,48 @@ export default function TokenPage({ params }: { params: Promise<{ mint: string }
       setLoading(false);
     }
   };
+
+  // Calculate estimated output
+  const estimatedOutput = useMemo(() => {
+    if (!token || !amount || parseFloat(amount) <= 0) return null;
+    const inputAmount = parseFloat(amount);
+    
+    if (tradeType === 'buy') {
+      // Buy: SOL -> tokens
+      const solAfterFee = inputAmount * 0.99; // 1% fee
+      const k = token.virtual_sol_reserves * token.virtual_token_reserves;
+      const newSolReserves = token.virtual_sol_reserves + solAfterFee;
+      const newTokenReserves = k / newSolReserves;
+      const tokensOut = token.virtual_token_reserves - newTokenReserves;
+      return { tokens: tokensOut, sol: null };
+    } else {
+      // Sell: tokens -> SOL
+      const tokensAfterFee = inputAmount * 0.99; // 1% fee
+      const k = token.virtual_sol_reserves * token.virtual_token_reserves;
+      const newTokenReserves = token.virtual_token_reserves + tokensAfterFee;
+      const newSolReserves = k / newTokenReserves;
+      const solOut = token.virtual_sol_reserves - newSolReserves;
+      return { tokens: null, sol: solOut };
+    }
+  }, [token, amount, tradeType]);
+
+  // Calculate price impact
+  const priceImpact = useMemo(() => {
+    if (!token || !amount || parseFloat(amount) <= 0) return 0;
+    const inputAmount = parseFloat(amount);
+    
+    if (tradeType === 'buy') {
+      // How much price increases when buying
+      const expectedTokens = inputAmount / token.price_sol;
+      const actualTokens = estimatedOutput?.tokens || 0;
+      return ((expectedTokens - actualTokens) / expectedTokens) * 100;
+    } else {
+      // How much price decreases when selling
+      const expectedSol = inputAmount * token.price_sol;
+      const actualSol = estimatedOutput?.sol || 0;
+      return ((expectedSol - actualSol) / expectedSol) * 100;
+    }
+  }, [token, amount, tradeType, estimatedOutput]);
 
   const handleTrade = async () => {
     if (!amount || !token) return;
@@ -54,13 +102,18 @@ export default function TokenPage({ params }: { params: Promise<{ mint: string }
 
       if (data.success) {
         setAmount('');
-        fetchToken();  // Refresh token data
+        fetchToken();
       }
     } catch (err) {
       setTradeResult({ success: false, error: 'Network error' });
     } finally {
       setTrading(false);
     }
+  };
+
+  const handleQuickSell = (percent: number) => {
+    const tokenAmount = (userBalance.tokens * percent / 100);
+    setAmount(tokenAmount.toString());
   };
 
   const formatPrice = (price: number) => {
@@ -249,10 +302,22 @@ export default function TokenPage({ params }: { params: Promise<{ mint: string }
                 </div>
               ) : (
                 <>
+                  {/* User Balance */}
+                  <div className="bg-gray-700/50 rounded-lg p-3 mb-4">
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-400">Your SOL</span>
+                      <span className="text-white font-mono">{userBalance.sol.toFixed(4)}</span>
+                    </div>
+                    <div className="flex justify-between text-sm mt-1">
+                      <span className="text-gray-400">Your ${token.symbol}</span>
+                      <span className="text-white font-mono">{formatNumber(userBalance.tokens)}</span>
+                    </div>
+                  </div>
+
                   {/* Buy/Sell Toggle */}
                   <div className="flex bg-gray-700 rounded-lg p-1 mb-4">
                     <button
-                      onClick={() => setTradeType('buy')}
+                      onClick={() => { setTradeType('buy'); setAmount(''); }}
                       className={`flex-1 py-2 rounded-md transition ${
                         tradeType === 'buy'
                           ? 'bg-green-600 text-white'
@@ -262,7 +327,7 @@ export default function TokenPage({ params }: { params: Promise<{ mint: string }
                       Buy
                     </button>
                     <button
-                      onClick={() => setTradeType('sell')}
+                      onClick={() => { setTradeType('sell'); setAmount(''); }}
                       className={`flex-1 py-2 rounded-md transition ${
                         tradeType === 'sell'
                           ? 'bg-red-600 text-white'
@@ -274,33 +339,99 @@ export default function TokenPage({ params }: { params: Promise<{ mint: string }
                   </div>
 
                   {/* Amount Input */}
-                  <div className="mb-4">
-                    <label className="text-gray-400 text-sm mb-2 block">
-                      {tradeType === 'buy' ? 'SOL Amount' : 'Token Amount'}
-                    </label>
-                    <input
-                      type="number"
-                      value={amount}
-                      onChange={(e) => setAmount(e.target.value)}
-                      placeholder="0.00"
-                      step="any"
-                      min="0"
-                      className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-3 text-white text-lg font-mono placeholder-gray-500 focus:border-orange-500 focus:outline-none"
-                    />
+                  <div className="mb-3">
+                    <div className="flex justify-between text-sm mb-2">
+                      <label className="text-gray-400">
+                        {tradeType === 'buy' ? 'SOL Amount' : 'Token Amount'}
+                      </label>
+                      <span className="text-gray-500">
+                        Max: {tradeType === 'buy' 
+                          ? userBalance.sol.toFixed(4) + ' SOL'
+                          : formatNumber(userBalance.tokens)
+                        }
+                      </span>
+                    </div>
+                    <div className="relative">
+                      <input
+                        type="number"
+                        value={amount}
+                        onChange={(e) => setAmount(e.target.value)}
+                        placeholder="0.00"
+                        step="any"
+                        min="0"
+                        className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-3 text-white text-lg font-mono placeholder-gray-500 focus:border-orange-500 focus:outline-none pr-16"
+                      />
+                      <button
+                        onClick={() => setAmount(tradeType === 'buy' 
+                          ? userBalance.sol.toString() 
+                          : userBalance.tokens.toString()
+                        )}
+                        className="absolute right-2 top-1/2 -translate-y-1/2 bg-orange-500/20 hover:bg-orange-500/30 text-orange-400 px-2 py-1 rounded text-sm transition"
+                      >
+                        MAX
+                      </button>
+                    </div>
                   </div>
 
                   {/* Quick amounts */}
-                  {tradeType === 'buy' && (
+                  {tradeType === 'buy' ? (
                     <div className="flex gap-2 mb-4">
                       {[0.1, 0.5, 1, 5].map((val) => (
                         <button
                           key={val}
                           onClick={() => setAmount(val.toString())}
-                          className="flex-1 bg-gray-700 hover:bg-gray-600 text-gray-300 py-1 rounded text-sm transition"
+                          className="flex-1 bg-gray-700 hover:bg-gray-600 text-gray-300 py-1.5 rounded text-sm transition"
                         >
                           {val} SOL
                         </button>
                       ))}
+                    </div>
+                  ) : (
+                    <div className="flex gap-2 mb-4">
+                      {[25, 50, 75, 100].map((percent) => (
+                        <button
+                          key={percent}
+                          onClick={() => handleQuickSell(percent)}
+                          className="flex-1 bg-gray-700 hover:bg-gray-600 text-gray-300 py-1.5 rounded text-sm transition"
+                        >
+                          {percent === 100 ? 'MAX' : `${percent}%`}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Estimated Output */}
+                  {estimatedOutput && (
+                    <div className="bg-gray-700/50 rounded-lg p-3 mb-4">
+                      <div className="flex justify-between text-sm">
+                        <span className="text-gray-400">You'll receive (est.)</span>
+                        <span className="text-white font-mono">
+                          {tradeType === 'buy' 
+                            ? formatNumber(estimatedOutput.tokens || 0) + ' ' + token.symbol
+                            : (estimatedOutput.sol || 0).toFixed(6) + ' SOL'
+                          }
+                        </span>
+                      </div>
+                      <div className="flex justify-between text-sm mt-1">
+                        <span className="text-gray-400">Price Impact</span>
+                        <span className={`font-mono ${
+                          priceImpact > 5 ? 'text-red-400' : 
+                          priceImpact > 2 ? 'text-yellow-400' : 
+                          'text-green-400'
+                        }`}>
+                          {priceImpact.toFixed(2)}%
+                        </span>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Price Impact Warning */}
+                  {priceImpact > 5 && (
+                    <div className="bg-red-900/30 border border-red-500/50 rounded-lg p-3 mb-4">
+                      <div className="text-red-400 text-sm flex items-center gap-2">
+                        <span>⚠️</span>
+                        <span>High price impact! Consider smaller trade.</span>
+                      </div>
                     </div>
                   )}
 

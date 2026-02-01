@@ -1,13 +1,17 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { Token, TokenListResponse } from '@/lib/types';
+
+type FilterTab = 'all' | 'trending' | 'new' | 'graduated';
 
 export default function TokensPage() {
   const [tokens, setTokens] = useState<Token[]>([]);
   const [loading, setLoading] = useState(true);
   const [sort, setSort] = useState('created_at');
+  const [search, setSearch] = useState('');
+  const [filter, setFilter] = useState<FilterTab>('all');
 
   useEffect(() => {
     fetchTokens();
@@ -25,6 +29,41 @@ export default function TokensPage() {
     }
   };
 
+  // Filter and search tokens
+  const filteredTokens = useMemo(() => {
+    let result = [...tokens];
+
+    // Apply tab filter
+    switch (filter) {
+      case 'trending':
+        result = result.sort((a, b) => (b.volume_24h || 0) - (a.volume_24h || 0)).slice(0, 20);
+        break;
+      case 'new':
+        result = result.filter((t) => {
+          const created = new Date(t.created_at);
+          const hourAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+          return created > hourAgo;
+        });
+        break;
+      case 'graduated':
+        result = result.filter((t) => t.graduated);
+        break;
+    }
+
+    // Apply search
+    if (search.trim()) {
+      const query = search.toLowerCase().trim();
+      result = result.filter((t) =>
+        t.symbol.toLowerCase().includes(query) ||
+        t.name.toLowerCase().includes(query) ||
+        t.mint.toLowerCase().includes(query) ||
+        (t.creator_name && t.creator_name.toLowerCase().includes(query))
+      );
+    }
+
+    return result;
+  }, [tokens, filter, search]);
+
   const formatPrice = (price: number) => {
     if (price < 0.000001) return '<0.000001 SOL';
     if (price < 0.001) return price.toFixed(6) + ' SOL';
@@ -41,6 +80,21 @@ export default function TokensPage() {
     if (vol >= 1000) return (vol / 1000).toFixed(1) + 'K';
     return vol.toFixed(2);
   };
+
+  const formatTimeAgo = (date: string) => {
+    const seconds = Math.floor((Date.now() - new Date(date).getTime()) / 1000);
+    if (seconds < 60) return `${seconds}s ago`;
+    if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
+    if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`;
+    return `${Math.floor(seconds / 86400)}d ago`;
+  };
+
+  const tabs: { id: FilterTab; label: string; icon: string }[] = [
+    { id: 'all', label: 'All', icon: '🌐' },
+    { id: 'trending', label: 'Trending', icon: '🔥' },
+    { id: 'new', label: 'New', icon: '✨' },
+    { id: 'graduated', label: 'Graduated', icon: '🎓' },
+  ];
 
   return (
     <main className="min-h-screen">
@@ -65,46 +119,124 @@ export default function TokensPage() {
       {/* Content */}
       <section className="py-8 px-6">
         <div className="max-w-6xl mx-auto">
-          <div className="flex items-center justify-between mb-6">
-            <h1 className="text-2xl font-bold text-white">All Tokens</h1>
-            <select
-              value={sort}
-              onChange={(e) => setSort(e.target.value)}
-              className="bg-gray-800 border border-gray-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-orange-500"
-            >
-              <option value="created_at">Newest</option>
-              <option value="market_cap">Market Cap</option>
-              <option value="volume">24h Volume</option>
-              <option value="price">Price</option>
-            </select>
+          {/* Search & Filters */}
+          <div className="mb-6 space-y-4">
+            {/* Search Bar */}
+            <div className="relative">
+              <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400">
+                🔍
+              </span>
+              <input
+                type="text"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search by name, symbol, mint, or creator..."
+                className="w-full bg-gray-800 border border-gray-700 rounded-xl pl-12 pr-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-orange-500 transition"
+              />
+              {search && (
+                <button
+                  onClick={() => setSearch('')}
+                  className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white transition"
+                >
+                  ✕
+                </button>
+              )}
+            </div>
+
+            {/* Tabs & Sort */}
+            <div className="flex flex-wrap items-center justify-between gap-4">
+              {/* Filter Tabs */}
+              <div className="flex bg-gray-800 rounded-lg p-1">
+                {tabs.map((tab) => (
+                  <button
+                    key={tab.id}
+                    onClick={() => setFilter(tab.id)}
+                    className={`px-4 py-2 rounded-md text-sm transition flex items-center gap-2 ${
+                      filter === tab.id
+                        ? 'bg-orange-500 text-white'
+                        : 'text-gray-400 hover:text-white'
+                    }`}
+                  >
+                    <span>{tab.icon}</span>
+                    <span className="hidden sm:inline">{tab.label}</span>
+                  </button>
+                ))}
+              </div>
+
+              {/* Sort Dropdown */}
+              <select
+                value={sort}
+                onChange={(e) => setSort(e.target.value)}
+                className="bg-gray-800 border border-gray-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-orange-500"
+              >
+                <option value="created_at">Newest</option>
+                <option value="market_cap">Market Cap</option>
+                <option value="volume">24h Volume</option>
+                <option value="price">Price</option>
+              </select>
+            </div>
           </div>
+
+          {/* Results count */}
+          {search && (
+            <div className="text-gray-400 text-sm mb-4">
+              Found {filteredTokens.length} token{filteredTokens.length !== 1 ? 's' : ''} matching "{search}"
+            </div>
+          )}
 
           {loading ? (
             <div className="text-center text-gray-400 py-12">
               <div className="animate-pulse">Loading tokens...</div>
             </div>
-          ) : tokens.length === 0 ? (
+          ) : filteredTokens.length === 0 ? (
             <div className="text-center py-12">
-              <div className="text-6xl mb-4">🐺</div>
-              <h2 className="text-xl font-bold text-white mb-2">No tokens yet</h2>
-              <p className="text-gray-400 mb-6">Be the first to launch!</p>
-              <Link
-                href="/create"
-                className="inline-block bg-orange-500 hover:bg-orange-400 text-white px-6 py-3 rounded-lg transition"
-              >
-                Create Token
-              </Link>
+              {search ? (
+                <>
+                  <div className="text-6xl mb-4">🔍</div>
+                  <h2 className="text-xl font-bold text-white mb-2">No tokens found</h2>
+                  <p className="text-gray-400 mb-6">Try a different search term</p>
+                  <button
+                    onClick={() => setSearch('')}
+                    className="text-orange-400 hover:text-orange-300 transition"
+                  >
+                    Clear search
+                  </button>
+                </>
+              ) : filter !== 'all' ? (
+                <>
+                  <div className="text-6xl mb-4">{tabs.find(t => t.id === filter)?.icon}</div>
+                  <h2 className="text-xl font-bold text-white mb-2">No {filter} tokens</h2>
+                  <button
+                    onClick={() => setFilter('all')}
+                    className="text-orange-400 hover:text-orange-300 transition"
+                  >
+                    View all tokens
+                  </button>
+                </>
+              ) : (
+                <>
+                  <div className="text-6xl mb-4">🐺</div>
+                  <h2 className="text-xl font-bold text-white mb-2">No tokens yet</h2>
+                  <p className="text-gray-400 mb-6">Be the first to launch!</p>
+                  <Link
+                    href="/create"
+                    className="inline-block bg-orange-500 hover:bg-orange-400 text-white px-6 py-3 rounded-lg transition"
+                  >
+                    Create Token
+                  </Link>
+                </>
+              )}
             </div>
           ) : (
             <div className="grid gap-4">
-              {tokens.map((token) => (
+              {filteredTokens.map((token) => (
                 <Link
                   key={token.mint}
                   href={`/tokens/${token.mint}`}
-                  className="bg-gray-800/50 border border-gray-700 hover:border-orange-500 rounded-xl p-4 transition flex items-center gap-4"
+                  className="bg-gray-800/50 border border-gray-700 hover:border-orange-500 rounded-xl p-4 transition flex items-center gap-4 group"
                 >
                   {/* Image */}
-                  <div className="w-12 h-12 bg-gray-700 rounded-full flex items-center justify-center text-2xl flex-shrink-0">
+                  <div className="w-12 h-12 bg-gray-700 rounded-full flex items-center justify-center text-2xl flex-shrink-0 group-hover:scale-110 transition">
                     {token.image ? (
                       <img src={token.image} alt="" className="w-full h-full rounded-full object-cover" />
                     ) : (
@@ -114,13 +246,16 @@ export default function TokensPage() {
 
                   {/* Info */}
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 flex-wrap">
                       <span className="font-bold text-white">${token.symbol}</span>
                       {token.graduated && (
                         <span className="bg-green-500/20 text-green-400 text-xs px-2 py-0.5 rounded-full">
                           🎓 Graduated
                         </span>
                       )}
+                      <span className="text-gray-500 text-xs">
+                        {formatTimeAgo(token.created_at)}
+                      </span>
                     </div>
                     <div className="text-gray-400 text-sm truncate">{token.name}</div>
                     <div className="text-gray-500 text-xs">by {token.creator_name || 'Anonymous'}</div>
@@ -142,6 +277,11 @@ export default function TokensPage() {
                   <div className="text-right hidden lg:block">
                     <div className="text-gray-400 font-mono">{token.trades_24h || 0}</div>
                     <div className="text-gray-500 text-sm">Trades</div>
+                  </div>
+
+                  {/* Arrow */}
+                  <div className="text-gray-600 group-hover:text-orange-400 transition">
+                    →
                   </div>
                 </Link>
               ))}
