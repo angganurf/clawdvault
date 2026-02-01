@@ -1,6 +1,9 @@
 import { supabaseAdmin, DbToken, DbTrade, TokenWithStats } from './supabase';
 import { Token, Trade, INITIAL_VIRTUAL_SOL, INITIAL_VIRTUAL_TOKENS, calculatePrice, calculateMarketCap } from './types';
 
+// Helper to get the admin client
+const db = () => supabaseAdmin.get();
+
 // Helper to generate random mint (for testing without real Solana)
 function generateMint(): string {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz123456789';
@@ -12,36 +15,36 @@ function generateMint(): string {
 }
 
 // Convert DB token to API token
-function dbToToken(db: DbToken | TokenWithStats): Token {
-  const price = 'price_sol' in db && db.price_sol 
-    ? Number(db.price_sol)
-    : calculatePrice(Number(db.virtual_sol_reserves), Number(db.virtual_token_reserves));
+function dbToToken(row: DbToken | TokenWithStats): Token {
+  const price = 'price_sol' in row && row.price_sol 
+    ? Number(row.price_sol)
+    : calculatePrice(Number(row.virtual_sol_reserves), Number(row.virtual_token_reserves));
   
-  const marketCap = 'market_cap_sol' in db && db.market_cap_sol
-    ? Number(db.market_cap_sol)
-    : calculateMarketCap(Number(db.virtual_sol_reserves), Number(db.virtual_token_reserves), INITIAL_VIRTUAL_TOKENS);
+  const marketCap = 'market_cap_sol' in row && row.market_cap_sol
+    ? Number(row.market_cap_sol)
+    : calculateMarketCap(Number(row.virtual_sol_reserves), Number(row.virtual_token_reserves), INITIAL_VIRTUAL_TOKENS);
 
   return {
-    id: db.id,
-    mint: db.mint,
-    name: db.name,
-    symbol: db.symbol,
-    description: db.description || undefined,
-    image: db.image || undefined,
-    creator: db.creator,
-    creator_name: db.creator_name || undefined,
-    created_at: db.created_at,
-    virtual_sol_reserves: Number(db.virtual_sol_reserves),
-    virtual_token_reserves: Number(db.virtual_token_reserves),
-    real_sol_reserves: Number(db.real_sol_reserves),
-    real_token_reserves: Number(db.real_token_reserves),
+    id: row.id,
+    mint: row.mint,
+    name: row.name,
+    symbol: row.symbol,
+    description: row.description || undefined,
+    image: row.image || undefined,
+    creator: row.creator,
+    creator_name: row.creator_name || undefined,
+    created_at: row.created_at,
+    virtual_sol_reserves: Number(row.virtual_sol_reserves),
+    virtual_token_reserves: Number(row.virtual_token_reserves),
+    real_sol_reserves: Number(row.real_sol_reserves),
+    real_token_reserves: Number(row.real_token_reserves),
     price_sol: price,
     market_cap_sol: marketCap,
-    graduated: db.graduated,
-    raydium_pool: db.raydium_pool || undefined,
-    volume_24h: 'volume_24h' in db ? Number(db.volume_24h) : 0,
-    trades_24h: 'trades_24h' in db ? Number(db.trades_24h) : 0,
-    holders: 'holders' in db ? Number(db.holders) : 1,
+    graduated: row.graduated,
+    raydium_pool: row.raydium_pool || undefined,
+    volume_24h: 'volume_24h' in row ? Number(row.volume_24h) : 0,
+    trades_24h: 'trades_24h' in row ? Number(row.trades_24h) : 0,
+    holders: 'holders' in row ? Number(row.holders) : 1,
   };
 }
 
@@ -54,7 +57,7 @@ export async function getAllTokens(options?: {
 }): Promise<{ tokens: Token[]; total: number }> {
   const { sort = 'created_at', graduated, page = 1, perPage = 20 } = options || {};
   
-  let query = supabaseAdmin.from('token_stats').select('*', { count: 'exact' });
+  let query = db().from('token_stats').select('*', { count: 'exact' });
   
   // Filter by graduation
   if (graduated !== undefined) {
@@ -95,7 +98,7 @@ export async function getAllTokens(options?: {
 
 // Get single token
 export async function getToken(mint: string): Promise<Token | null> {
-  const { data, error } = await supabaseAdmin
+  const { data, error } = await db()
     .from('token_stats')
     .select('*')
     .eq('mint', mint)
@@ -110,7 +113,7 @@ export async function getToken(mint: string): Promise<Token | null> {
 
 // Get token trades
 export async function getTokenTrades(mint: string, limit = 50): Promise<Trade[]> {
-  const { data, error } = await supabaseAdmin
+  const { data, error } = await db()
     .from('trades')
     .select('*')
     .eq('token_mint', mint)
@@ -148,7 +151,7 @@ export async function createToken(data: {
 }): Promise<Token | null> {
   const mint = generateMint();
   
-  const { data: token, error } = await supabaseAdmin
+  const { data: token, error } = await db()
     .from('tokens')
     .insert({
       mint,
@@ -185,7 +188,7 @@ export async function executeTrade(
   trader: string
 ): Promise<{ token: Token; trade: Trade } | null> {
   // Get current token state
-  const { data: token, error: fetchError } = await supabaseAdmin
+  const { data: token, error: fetchError } = await db()
     .from('tokens')
     .select('*')
     .eq('mint', mint)
@@ -240,7 +243,7 @@ export async function executeTrade(
   const graduated = newRealSol >= 85; // ~$69K threshold
   
   // Update token
-  const { error: updateError } = await supabaseAdmin
+  const { error: updateError } = await db()
     .from('tokens')
     .update({
       virtual_sol_reserves: newVirtualSol,
@@ -257,7 +260,7 @@ export async function executeTrade(
   }
   
   // Insert trade
-  const { data: trade, error: tradeError } = await supabaseAdmin
+  const { data: trade, error: tradeError } = await db()
     .from('trades')
     .insert({
       token_id: token.id,
@@ -301,7 +304,7 @@ export async function executeTrade(
 export async function validateApiKey(apiKey: string): Promise<boolean> {
   if (apiKey === 'test_key') return true; // Allow test key
   
-  const { data, error } = await supabaseAdmin
+  const { data, error } = await db()
     .from('agents')
     .select('id')
     .eq('api_key', apiKey)

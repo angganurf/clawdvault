@@ -1,22 +1,46 @@
-import { createClient } from '@supabase/supabase-js';
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
 // Environment variables (set in Vercel)
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
 
-// Client for public access (browser)
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+// Lazy initialization to avoid build-time errors
+let _supabase: SupabaseClient | null = null;
+let _supabaseAdmin: SupabaseClient | null = null;
 
-// Admin client for server-side operations (API routes)
-export const supabaseAdmin = supabaseServiceKey 
-  ? createClient(supabaseUrl, supabaseServiceKey, {
+function getSupabase(): SupabaseClient {
+  if (!_supabase) {
+    if (!supabaseUrl || !supabaseAnonKey) {
+      throw new Error('Supabase URL and Anon Key are required');
+    }
+    _supabase = createClient(supabaseUrl, supabaseAnonKey);
+  }
+  return _supabase;
+}
+
+function getSupabaseAdmin(): SupabaseClient {
+  if (!_supabaseAdmin) {
+    if (!supabaseUrl) {
+      throw new Error('Supabase URL is required');
+    }
+    const key = supabaseServiceKey || supabaseAnonKey;
+    if (!key) {
+      throw new Error('Supabase key is required');
+    }
+    _supabaseAdmin = createClient(supabaseUrl, key, {
       auth: {
         autoRefreshToken: false,
         persistSession: false
       }
-    })
-  : supabase;
+    });
+  }
+  return _supabaseAdmin;
+}
+
+// Export getters instead of direct clients
+export const supabase = { get: getSupabase };
+export const supabaseAdmin = { get: getSupabaseAdmin };
 
 // Database types
 export interface DbToken {
