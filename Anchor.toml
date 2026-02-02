@@ -1,13 +1,13 @@
-# Don't specify toolchain - let CI use installed version
+[toolchain]
 
 [features]
-seeds = false
+resolution = true
 skip-lint = false
 
-[programs.localnet]
-clawdvault = "GMdG56oR3Qpc8NT6TwAtwdwNggxRADn6VAYbotLF1aM"
-
 [programs.devnet]
+clawdvault = "GUyF2TVe32Cid4iGVt2F6wPYDhLSVmTUZBj2974outYM"
+
+[programs.localnet]
 clawdvault = "GMdG56oR3Qpc8NT6TwAtwdwNggxRADn6VAYbotLF1aM"
 
 [programs.mainnet]
@@ -23,8 +23,15 @@ wallet = "~/.config/solana/id.json"
 [scripts]
 test = "yarn run ts-mocha -p ./tsconfig.json -t 1000000 tests/**/*.ts"
 
+[hooks]
+
 [test]
 startup_wait = 5000
+shutdown_wait = 2000
+upgradeable = false
 
 [test.validator]
+bind_address = "0.0.0.0"
 url = "https://api.devnet.solana.com"
+ledger = ".anchor/test-ledger"
+rpc_port = 8899
