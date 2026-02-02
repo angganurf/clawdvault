@@ -21,6 +21,7 @@ export default function CreatePage() {
   const [initialBuy, setInitialBuy] = useState('');
   const [uploading, setUploading] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [loadingStep, setLoadingStep] = useState('');
   const [result, setResult] = useState<CreateTokenResponse | null>(null);
   const [error, setError] = useState('');
   const [dragActive, setDragActive] = useState(false);
@@ -124,6 +125,7 @@ export default function CreatePage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
+    setLoadingStep('');
     setError('');
     setResult(null);
 
@@ -131,6 +133,7 @@ export default function CreatePage() {
       // If Anchor program is available, use non-custodial flow
       if (anchorAvailable && publicKey) {
         console.log('🔗 Using on-chain Anchor flow');
+        setLoadingStep('Preparing transaction...');
         
         // Step 1: Prepare unsigned transaction
         const prepareRes = await fetch('/api/token/prepare-create', {
@@ -154,36 +157,59 @@ export default function CreatePage() {
         console.log('📝 Transaction prepared, mint:', prepareData.mint);
         
         // Step 2: Sign transaction with wallet
-        const signedTx = await signTransaction(prepareData.transaction);
-        
-        if (!signedTx) {
-          setError('Transaction signing cancelled or failed');
+        setLoadingStep('Waiting for wallet signature...');
+        console.log('🖊️ Requesting wallet signature...');
+        let signedTx: string | null = null;
+        try {
+          signedTx = await signTransaction(prepareData.transaction);
+        } catch (signErr) {
+          console.error('Signing error:', signErr);
+          setError('Wallet signing failed: ' + (signErr instanceof Error ? signErr.message : 'Unknown error'));
+          setLoading(false);
           return;
         }
         
-        console.log('✍️ Transaction signed, submitting...');
+        if (!signedTx) {
+          console.log('❌ No signed transaction returned');
+          setError('Transaction signing cancelled or wallet returned empty response');
+          setLoading(false);
+          return;
+        }
+        
+        console.log('✍️ Transaction signed, submitting to network...');
+        setLoadingStep('Submitting to Solana...');
         
         // Step 3: Execute signed transaction
-        const executeRes = await fetch('/api/token/execute-create', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            signedTransaction: signedTx,
-            mint: prepareData.mint,
-            creator: publicKey,
-            name,
-            symbol,
-            description: description || undefined,
-            image: image || undefined,
-            twitter: twitter || undefined,
-            telegram: telegram || undefined,
-            website: website || undefined,
-          }),
-        });
-        
-        const executeData = await executeRes.json();
+        let executeData;
+        try {
+          const executeRes = await fetch('/api/token/execute-create', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              signedTransaction: signedTx,
+              mint: prepareData.mint,
+              creator: publicKey,
+              name,
+              symbol,
+              description: description || undefined,
+              image: image || undefined,
+              twitter: twitter || undefined,
+              telegram: telegram || undefined,
+              website: website || undefined,
+            }),
+          });
+          
+          executeData = await executeRes.json();
+          console.log('📬 Execute response:', executeData);
+        } catch (execErr) {
+          console.error('Execute fetch error:', execErr);
+          setError('Failed to submit transaction: ' + (execErr instanceof Error ? execErr.message : 'Network error'));
+          setLoading(false);
+          return;
+        }
         
         if (executeData.success) {
+          console.log('✅ Token created successfully!');
           setResult({
             success: true,
             token: executeData.token,
@@ -192,9 +218,11 @@ export default function CreatePage() {
             onChain: true,
           });
         } else {
-          setError(executeData.error || 'Failed to create token');
+          console.log('❌ Execute failed:', executeData.error);
+          setError(executeData.error || 'Failed to create token on-chain');
         }
         
+        setLoading(false);
         return;
       }
       
@@ -236,6 +264,7 @@ export default function CreatePage() {
       setError('Network error: ' + (err instanceof Error ? err.message : 'Unknown error'));
     } finally {
       setLoading(false);
+      setLoadingStep('');
     }
   };
 
@@ -556,7 +585,7 @@ export default function CreatePage() {
                   disabled={loading || uploading || !name || !symbol}
                   className="w-full bg-gradient-to-r from-orange-600 to-red-500 hover:from-orange-500 hover:to-red-400 disabled:opacity-50 disabled:cursor-not-allowed text-white py-4 rounded-xl font-semibold transition"
                 >
-                  {loading ? 'Creating...' : uploading ? 'Uploading image...' : 'Launch Token 🚀'}
+                  {loading ? (loadingStep || 'Creating...') : uploading ? 'Uploading image...' : 'Launch Token 🚀'}
                 </button>
               ) : (
                 <button
