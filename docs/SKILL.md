@@ -181,6 +181,129 @@ Get a quote without executing.
 }
 ```
 
+## On-Chain Trading (Wallet-Signed)
+
+For non-custodial trading where users sign transactions with their own wallet.
+
+### `POST /api/trade/prepare`
+
+Prepare a trade transaction for wallet signing.
+
+**Request Body:**
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `mint` | string | ✅ | Token mint address |
+| `type` | string | ✅ | "buy" or "sell" |
+| `amount` | number | ✅ | SOL (buy) or tokens (sell) |
+| `wallet` | string | ✅ | Your Solana wallet address |
+| `slippage` | number | ❌ | Tolerance (default 0.01 = 1%) |
+
+**Response:**
+```json
+{
+  "success": true,
+  "transaction": "base64-encoded-tx",
+  "type": "buy",
+  "input": { "sol": 0.5, "fee": 0.005 },
+  "output": { "tokens": 17857142, "minTokens": 17678570 },
+  "priceImpact": 1.67
+}
+```
+
+### `POST /api/trade/execute`
+
+Execute a signed trade transaction.
+
+**Request Body:**
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `signedTransaction` | string | ✅ | Base64 signed transaction |
+| `mint` | string | ✅ | Token mint address |
+| `type` | string | ✅ | "buy" or "sell" |
+| `wallet` | string | ✅ | Your wallet address |
+| `solAmount` | number | ✅ | SOL amount in trade |
+| `tokenAmount` | number | ✅ | Token amount in trade |
+
+**Response:**
+```json
+{
+  "success": true,
+  "signature": "5xyz...",
+  "explorer": "https://explorer.solana.com/tx/..."
+}
+```
+
+### `POST /api/token/prepare-create`
+
+Prepare a token creation transaction for wallet signing.
+
+**Request Body:**
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `creator` | string | ✅ | Your wallet address |
+| `name` | string | ✅ | Token name (max 32) |
+| `symbol` | string | ✅ | Token symbol (max 10) |
+| `uri` | string | ❌ | Metadata URI |
+| `initialBuy` | number | ❌ | SOL to buy at launch |
+
+**Response:**
+```json
+{
+  "success": true,
+  "transaction": "base64-encoded-tx",
+  "mint": "NewMintAddress...",
+  "initialBuy": {
+    "sol": 0.5,
+    "estimatedTokens": 17857142
+  }
+}
+```
+
+### `POST /api/token/execute-create`
+
+Execute a signed token creation transaction.
+
+**Request Body:**
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `signedTransaction` | string | ✅ | Base64 signed transaction |
+| `mint` | string | ✅ | Mint address from prepare |
+| `creator` | string | ✅ | Your wallet address |
+| `name` | string | ✅ | Token name |
+| `symbol` | string | ✅ | Token symbol |
+| `description` | string | ❌ | Token description |
+| `image` | string | ❌ | Image URL |
+| `twitter` | string | ❌ | Twitter handle |
+| `telegram` | string | ❌ | Telegram group |
+| `website` | string | ❌ | Website URL |
+| `initialBuy` | object | ❌ | `{ solAmount, estimatedTokens }` |
+
+**Response:**
+```json
+{
+  "success": true,
+  "token": { ... },
+  "signature": "5xyz...",
+  "mint": "MintAddress...",
+  "initialBuyTrade": { "id": "...", "solAmount": 0.5, "tokenAmount": 17857142 }
+}
+```
+
+### `GET /api/network`
+
+Check network status and Anchor program availability.
+
+**Response:**
+```json
+{
+  "success": true,
+  "network": "devnet",
+  "mockMode": false,
+  "anchorProgram": true,
+  "programId": "GUyF2TVe32Cid4iGVt2F6wPYDhLSVmTUZBj2974outYM"
+}
+```
+
 ## Bonding Curve Math
 
 ClawdVault uses a constant product formula (similar to Uniswap/pump.fun):

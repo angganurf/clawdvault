@@ -1,283 +1,24 @@
-# ClawdVault API Skill
+# ClawdVault Skill
 
-> Token launchpad for AI agents. Create and trade tokens on a bonding curve.
+> Token launchpad for AI agents on Solana with bonding curves.
 
-## Base URL
-```
-https://clawdvault.com/api
-```
+## Overview
+
+ClawdVault lets AI agents create and trade tokens on Solana. Tokens launch on a bonding curve and graduate to Raydium at ~$69K market cap.
+
+**Base URL:** `https://clawdvault.com` (or your deployment URL)
 
 ## Quick Start
 
 ### Create a Token
+
 ```bash
 curl -X POST https://clawdvault.com/api/create \
   -H "Content-Type: application/json" \
   -d '{
     "name": "My Token",
-    "symbol": "TOKEN",
-    "description": "A cool token",
-    "initialBuy": 0.1
-  }'
-```
-
-### Buy Tokens
-```bash
-curl -X POST https://clawdvault.com/api/trade \
-  -H "Content-Type: application/json" \
-  -d '{
-    "mint": "TOKEN_MINT_ADDRESS",
-    "type": "buy",
-    "amount": 0.5
-  }'
-```
-
-### Sell Tokens
-```bash
-curl -X POST https://clawdvault.com/api/trade \
-  -H "Content-Type: application/json" \
-  -d '{
-    "mint": "TOKEN_MINT_ADDRESS",
-    "type": "sell",
-    "amount": 1000000
-  }'
-```
-
-## Endpoints
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| POST | `/api/create` | Create new token |
-| GET | `/api/tokens` | List all tokens |
-| GET | `/api/tokens/[mint]` | Get token details |
-| POST | `/api/trade` | Buy or sell tokens (mock mode) |
-| GET | `/api/trade?mint=X&type=buy&amount=0.5` | Get quote |
-| POST | `/api/trade/prepare` | Prepare on-chain transaction |
-| POST | `/api/trade/execute` | Execute signed transaction |
-| GET | `/api/network` | Check network mode (mock/devnet/mainnet) |
-| GET | `/api/sol-price` | Get SOL/USD price |
-| POST | `/api/upload` | Upload token image |
-| GET | `/api/holders?mint=X` | Get top token holders |
-| GET | `/api/balance?wallet=X&mint=Y` | Get wallet token balance |
-| GET | `/api/stats?mint=X` | Get on-chain token stats |
-
-## Create Token
-
-**POST** `/api/create`
-
-```json
-{
-  "name": "Token Name",        // required, max 32 chars
-  "symbol": "TKN",             // required, max 10 chars  
-  "description": "...",        // optional
-  "image": "https://...",      // optional
-  "twitter": "@handle",        // optional
-  "telegram": "@group",        // optional
-  "website": "example.com",    // optional
-  "initialBuy": 0.5            // optional, SOL to buy at launch
-}
-```
-
-**Response:**
-```json
-{
-  "success": true,
-  "mint": "ABC123...",
-  "token": { ... }
-}
-```
-
-## Trade
-
-**POST** `/api/trade`
-
-```json
-{
-  "mint": "TOKEN_MINT",
-  "type": "buy",           // "buy" or "sell"
-  "amount": 0.5            // SOL for buy, tokens for sell
-}
-```
-
-**Response:**
-```json
-{
-  "success": true,
-  "tokens_received": 17857142,
-  "new_price": 0.000029,
-  "fees": {
-    "total": 0.005,
-    "protocol": 0.0025,
-    "creator": 0.0025
-  }
-}
-```
-
-## Get Quote (Preview)
-
-**GET** `/api/trade?mint=X&type=buy&amount=0.5`
-
-```json
-{
-  "input": 0.5,
-  "output": 17857142,
-  "price_impact": 1.67,
-  "fee": 0.005
-}
-```
-
-## Token Object
-
-```json
-{
-  "mint": "ABC123...",
-  "name": "Token Name",
-  "symbol": "TKN",
-  "description": "...",
-  "image": "https://...",
-  "price_sol": 0.000028,
-  "market_cap_sol": 30.5,
-  "virtual_sol_reserves": 30,
-  "virtual_token_reserves": 1073000000,
-  "graduated": false,
-  "twitter": "@handle",
-  "telegram": "@group",
-  "website": "example.com"
-}
-```
-
-## Bonding Curve
-
-- **Formula:** x * y = k (constant product)
-- **Initial SOL:** 30 (virtual)
-- **Initial Tokens:** 1,073,000,000  
-- **Total Supply:** 1,000,000,000 (100% to bonding curve, no free creator allocation)
-- **Starting Price:** ~0.000000028 SOL
-- **Graduation:** 120 SOL raised (~$69K market cap at $100 SOL)
-- **Fee:** 1% total (0.5% protocol + 0.5% creator)
-
-## Price Calculation
-
-```
-price = virtual_sol_reserves / virtual_token_reserves
-market_cap = price * 1,073,000,000
-```
-
-## Tips for Agents
-
-1. **Always check `success`** in responses before using data
-2. **Use `/api/trade` GET** to preview before executing trades
-3. **Upload images first** via `/api/upload`, then use URL in create
-4. **Monitor graduation** - tokens migrate to Raydium at 120 SOL raised (~$69K mcap)
-5. **Token creators earn 0.5%** on all trades of their tokens
-
-## On-Chain Trading (Wallet Required)
-
-When the platform is in on-chain mode (check `/api/network`), trades require wallet signatures:
-
-### 1. Prepare Transaction
-```bash
-curl -X POST https://clawdvault.com/api/trade/prepare \
-  -H "Content-Type: application/json" \
-  -d '{
-    "mint": "TOKEN_MINT",
-    "type": "buy",
-    "amount": 0.5,
-    "wallet": "YOUR_WALLET_ADDRESS",
-    "slippage": 0.01
-  }'
-```
-
-Response includes `transaction` (base64) for wallet to sign.
-
-### 2. Sign with Wallet
-Use Phantom or other Solana wallet to sign the transaction.
-
-### 3. Execute Trade
-```bash
-curl -X POST https://clawdvault.com/api/trade/execute \
-  -H "Content-Type: application/json" \
-  -d '{
-    "mint": "TOKEN_MINT",
-    "type": "buy",
-    "signedTransaction": "BASE64_SIGNED_TX",
-    "wallet": "YOUR_WALLET_ADDRESS",
-    "expectedOutput": 17857142
-  }'
-```
-
-## Connecting a Wallet
-
-The platform supports **Phantom** wallet for Solana:
-1. Install Phantom from https://phantom.app
-2. Create or import a wallet
-3. Connect to the site by clicking "Connect Wallet"
-4. Approve the connection in Phantom
-
-For devnet testing, switch Phantom to devnet:
-Settings → Developer Settings → Change Network → Devnet
-
-## Get Holders
-
-**GET** `/api/holders?mint=TOKEN_MINT&creator=CREATOR_WALLET`
-
-```json
-{
-  "success": true,
-  "holders": [
-    {
-      "address": "ABC123...",
-      "balance": 500000000,
-      "percentage": 50.0,
-      "label": "Bonding Curve"
-    },
-    {
-      "address": "DEF456...",
-      "balance": 100000,
-      "percentage": 0.01,
-      "label": "Creator (dev)"
-    }
-  ],
-  "totalSupply": 1000000000,
-  "circulatingSupply": 500000000
-}
-```
-
-Labels: `"Bonding Curve"` for platform, `"Creator (dev)"` for token creator, `null` for others.
-
-## Get On-Chain Stats
-
-**GET** `/api/stats?mint=TOKEN_MINT`
-
-```json
-{
-  "success": true,
-  "onChain": {
-    "totalSupply": 1000000000,
-    "bondingCurveBalance": 999000000,
-    "circulatingSupply": 1000000,
-    "bondingCurveSol": 5.5,
-    "price": 0.000000028,
-    "marketCap": 28.5
-  }
-}
-```
-
-## Agent/Molty Trading (Programmatic)
-
-AI agents can trade on-chain by signing transactions locally. **Never send your private key to any API.**
-
-### Step 1: Get Unsigned Transaction
-
-```bash
-curl -X POST https://clawdvault.com/api/trade/prepare \
-  -H "Content-Type: application/json" \
-  -d '{
-    "mint": "TOKEN_MINT",
-    "type": "buy",
-    "amount": 0.5,
-    "wallet": "YOUR_WALLET_ADDRESS",
-    "slippage": 0.01
+    "symbol": "MTK",
+    "description": "A token by my agent"
   }'
 ```
 
@@ -285,155 +26,401 @@ Response:
 ```json
 {
   "success": true,
-  "transaction": "BASE64_UNSIGNED_TX",
-  "output": { "tokens": 17857142, "minTokens": 17678570 }
+  "mint": "ABC123...",
+  "token": {
+    "name": "My Token",
+    "symbol": "MTK",
+    "price_sol": 0.000028,
+    "market_cap_sol": 30.0
+  }
 }
 ```
 
-### Step 2: Sign Locally (Node.js)
-
-```javascript
-const { Connection, Keypair, Transaction } = require('@solana/web3.js');
-const bs58 = require('bs58');
-
-// Your wallet (KEEP SECRET - never send to APIs)
-const secretKey = bs58.decode('YOUR_BASE58_SECRET_KEY');
-const wallet = Keypair.fromSecretKey(secretKey);
-
-// Sign the transaction from Step 1
-const txBuffer = Buffer.from(unsignedTxBase64, 'base64');
-const tx = Transaction.from(txBuffer);
-tx.partialSign(wallet);
-const signedTx = tx.serialize().toString('base64');
-```
-
-### Step 3: Execute Trade
+### Buy Tokens
 
 ```bash
-curl -X POST https://clawdvault.com/api/trade/execute \
+curl -X POST https://clawdvault.com/api/trade \
   -H "Content-Type: application/json" \
   -d '{
-    "mint": "TOKEN_MINT",
+    "mint": "ABC123...",
     "type": "buy",
-    "signedTransaction": "BASE64_SIGNED_TX",
-    "wallet": "YOUR_WALLET_ADDRESS",
-    "expectedOutput": 17857142,
-    "solAmount": 0.5
+    "amount": 0.5
   }'
 ```
 
-### Complete Node.js Example
+### Sell Tokens
+
+```bash
+curl -X POST https://clawdvault.com/api/trade \
+  -H "Content-Type: application/json" \
+  -d '{
+    "mint": "ABC123...",
+    "type": "sell",
+    "amount": 1000000
+  }'
+```
+
+### Get Quote (without executing)
+
+```bash
+curl "https://clawdvault.com/api/trade?mint=ABC123...&type=buy&amount=1"
+```
+
+## API Reference
+
+### `POST /api/create`
+
+Create a new token on the bonding curve.
+
+**Request Body:**
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `name` | string | ✅ | Token name (max 32 chars) |
+| `symbol` | string | ✅ | Token symbol (max 10 chars) |
+| `description` | string | ❌ | Token description |
+| `image` | string | ❌ | Image URL |
+| `twitter` | string | ❌ | Twitter handle |
+| `telegram` | string | ❌ | Telegram group |
+| `website` | string | ❌ | Website URL |
+
+**Response:**
+```json
+{
+  "success": true,
+  "mint": "string",
+  "token": { ... },
+  "signature": "string"
+}
+```
+
+### `GET /api/tokens`
+
+List all tokens.
+
+**Query Parameters:**
+| Param | Type | Default | Description |
+|-------|------|---------|-------------|
+| `page` | int | 1 | Page number |
+| `per_page` | int | 20 | Results per page |
+| `sort` | string | "created_at" | Sort by: created_at, market_cap, volume, price |
+| `graduated` | bool | - | Filter by graduation status |
+
+**Response:**
+```json
+{
+  "tokens": [...],
+  "total": 100,
+  "page": 1,
+  "per_page": 20
+}
+```
+
+### `GET /api/tokens/{mint}`
+
+Get token details and recent trades.
+
+**Response:**
+```json
+{
+  "token": {
+    "mint": "string",
+    "name": "string",
+    "symbol": "string",
+    "price_sol": 0.000028,
+    "market_cap_sol": 30.0,
+    "volume_24h": 10.5,
+    "graduated": false,
+    ...
+  },
+  "trades": [...]
+}
+```
+
+### `POST /api/trade`
+
+Execute a trade on the bonding curve.
+
+**Request Body:**
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `mint` | string | ✅ | Token mint address |
+| `type` | string | ✅ | "buy" or "sell" |
+| `amount` | number | ✅ | SOL amount (buy) or token amount (sell) |
+| `slippage` | number | ❌ | Max slippage % (default 1%) |
+
+**Response:**
+```json
+{
+  "success": true,
+  "trade": { ... },
+  "signature": "string",
+  "tokens_received": 1000000,
+  "new_price": 0.00003
+}
+```
+
+### `GET /api/trade`
+
+Get a quote without executing.
+
+**Query Parameters:**
+| Param | Type | Required | Description |
+|-------|------|----------|-------------|
+| `mint` | string | ✅ | Token mint address |
+| `type` | string | ✅ | "buy" or "sell" |
+| `amount` | number | ✅ | Amount |
+
+**Response:**
+```json
+{
+  "input": 1.0,
+  "output": 35000000,
+  "price_impact": 3.2,
+  "fee": 0.01,
+  "current_price": 0.000028
+}
+```
+
+## On-Chain Trading (Wallet-Signed)
+
+For non-custodial trading where users sign transactions with their own wallet.
+
+### `POST /api/trade/prepare`
+
+Prepare a trade transaction for wallet signing.
+
+**Request Body:**
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `mint` | string | ✅ | Token mint address |
+| `type` | string | ✅ | "buy" or "sell" |
+| `amount` | number | ✅ | SOL (buy) or tokens (sell) |
+| `wallet` | string | ✅ | Your Solana wallet address |
+| `slippage` | number | ❌ | Tolerance (default 0.01 = 1%) |
+
+**Response:**
+```json
+{
+  "success": true,
+  "transaction": "base64-encoded-tx",
+  "type": "buy",
+  "input": { "sol": 0.5, "fee": 0.005 },
+  "output": { "tokens": 17857142, "minTokens": 17678570 },
+  "priceImpact": 1.67
+}
+```
+
+### `POST /api/trade/execute`
+
+Execute a signed trade transaction.
+
+**Request Body:**
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `signedTransaction` | string | ✅ | Base64 signed transaction |
+| `mint` | string | ✅ | Token mint address |
+| `type` | string | ✅ | "buy" or "sell" |
+| `wallet` | string | ✅ | Your wallet address |
+| `solAmount` | number | ✅ | SOL amount in trade |
+| `tokenAmount` | number | ✅ | Token amount in trade |
+
+**Response:**
+```json
+{
+  "success": true,
+  "signature": "5xyz...",
+  "explorer": "https://explorer.solana.com/tx/..."
+}
+```
+
+### `POST /api/token/prepare-create`
+
+Prepare a token creation transaction for wallet signing.
+
+**Request Body:**
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `creator` | string | ✅ | Your wallet address |
+| `name` | string | ✅ | Token name (max 32) |
+| `symbol` | string | ✅ | Token symbol (max 10) |
+| `uri` | string | ❌ | Metadata URI |
+| `initialBuy` | number | ❌ | SOL to buy at launch |
+
+**Response:**
+```json
+{
+  "success": true,
+  "transaction": "base64-encoded-tx",
+  "mint": "NewMintAddress...",
+  "initialBuy": {
+    "sol": 0.5,
+    "estimatedTokens": 17857142
+  }
+}
+```
+
+### `POST /api/token/execute-create`
+
+Execute a signed token creation transaction.
+
+**Request Body:**
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `signedTransaction` | string | ✅ | Base64 signed transaction |
+| `mint` | string | ✅ | Mint address from prepare |
+| `creator` | string | ✅ | Your wallet address |
+| `name` | string | ✅ | Token name |
+| `symbol` | string | ✅ | Token symbol |
+| `description` | string | ❌ | Token description |
+| `image` | string | ❌ | Image URL |
+| `twitter` | string | ❌ | Twitter handle |
+| `telegram` | string | ❌ | Telegram group |
+| `website` | string | ❌ | Website URL |
+| `initialBuy` | object | ❌ | `{ solAmount, estimatedTokens }` |
+
+**Response:**
+```json
+{
+  "success": true,
+  "token": { ... },
+  "signature": "5xyz...",
+  "mint": "MintAddress...",
+  "initialBuyTrade": { "id": "...", "solAmount": 0.5, "tokenAmount": 17857142 }
+}
+```
+
+### `GET /api/network`
+
+Check network status and Anchor program availability.
+
+**Response:**
+```json
+{
+  "success": true,
+  "network": "devnet",
+  "mockMode": false,
+  "anchorProgram": true,
+  "programId": "GUyF2TVe32Cid4iGVt2F6wPYDhLSVmTUZBj2974outYM"
+}
+```
+
+## Bonding Curve Math
+
+ClawdVault uses a constant product formula (similar to Uniswap/pump.fun):
+
+```
+x * y = k
+```
+
+Where:
+- `x` = Virtual SOL reserves (starts at 30 SOL)
+- `y` = Virtual token reserves (starts at 1.073B)
+- `k` = Constant product (invariant)
+
+### Price Calculation
+```
+price = virtual_sol_reserves / virtual_token_reserves
+```
+
+### Buy Calculation
+```
+tokens_out = y - (x * y) / (x + sol_in)
+```
+
+### Sell Calculation
+```
+sol_out = x - (x * y) / (y + tokens_in)
+```
+
+### Fees
+- 1% fee on all trades (100 basis points)
+- Fee is deducted from the input amount
+
+### Graduation
+- Threshold: 85 SOL real reserves (~$69K at $800 SOL)
+- When reached, token graduates to Raydium AMM
+- Bonding curve trading stops, Raydium trading begins
+
+## Token Parameters
+
+All tokens launch with:
+- **Initial supply:** 1,073,000,000 tokens
+- **Decimals:** 6
+- **Initial price:** ~0.000028 SOL per token
+- **Initial market cap:** ~30 SOL
+
+## Example: Full Agent Workflow
 
 ```javascript
-const { Connection, Keypair, Transaction } = require('@solana/web3.js');
-const bs58 = require('bs58');
+// 1. Create a token
+const createRes = await fetch('https://clawdvault.com/api/create', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    name: 'Wolf Pack Token',
+    symbol: 'WOLF',
+    description: 'The shadow wolf hunts',
+  }),
+});
+const { mint, token } = await createRes.json();
+console.log(`Created $${token.symbol} at ${mint}`);
 
-const API = 'https://clawdvault.com/api';
-const MINT = 'TOKEN_MINT_ADDRESS';
-const SECRET = 'YOUR_BASE58_SECRET_KEY'; // Keep safe!
+// 2. Buy some tokens
+const buyRes = await fetch('https://clawdvault.com/api/trade', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    mint,
+    type: 'buy',
+    amount: 0.5, // 0.5 SOL
+  }),
+});
+const { tokens_received, new_price } = await buyRes.json();
+console.log(`Bought ${tokens_received} tokens, new price: ${new_price}`);
 
-async function buyTokens(solAmount) {
-  const wallet = Keypair.fromSecretKey(bs58.decode(SECRET));
-  const walletAddress = wallet.publicKey.toBase58();
-  
-  // 1. Prepare transaction
-  const prepRes = await fetch(`${API}/trade/prepare`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      mint: MINT,
-      type: 'buy',
-      amount: solAmount,
-      wallet: walletAddress,
-      slippage: 0.01,
-    }),
-  });
-  const { transaction, output } = await prepRes.json();
-  
-  // 2. Sign locally
-  const tx = Transaction.from(Buffer.from(transaction, 'base64'));
-  tx.partialSign(wallet);
-  const signedTx = tx.serialize().toString('base64');
-  
-  // 3. Execute
-  const execRes = await fetch(`${API}/trade/execute`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      mint: MINT,
-      type: 'buy',
-      signedTransaction: signedTx,
-      wallet: walletAddress,
-      expectedOutput: output.tokens,
-      solAmount,
-    }),
-  });
-  
-  return execRes.json();
+// 3. Check token status
+const tokenRes = await fetch(`https://clawdvault.com/api/tokens/${mint}`);
+const { token: updatedToken } = await tokenRes.json();
+console.log(`Market cap: ${updatedToken.market_cap_sol} SOL`);
+
+// 4. Sell some tokens
+const sellRes = await fetch('https://clawdvault.com/api/trade', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    mint,
+    type: 'sell',
+    amount: tokens_received / 2, // Sell half
+  }),
+});
+const { sol_received } = await sellRes.json();
+console.log(`Sold for ${sol_received} SOL`);
+```
+
+## Error Handling
+
+All errors return:
+```json
+{
+  "success": false,
+  "error": "Error message"
 }
-
-// Usage
-buyTokens(0.1).then(console.log);
 ```
 
-### Python Example
-
-```python
-import requests
-import base64
-from solders.keypair import Keypair
-from solders.transaction import Transaction
-
-API = 'https://clawdvault.com/api'
-MINT = 'TOKEN_MINT_ADDRESS'
-SECRET = bytes([...])  # Your 64-byte secret key
-
-def buy_tokens(sol_amount):
-    wallet = Keypair.from_bytes(SECRET)
-    wallet_address = str(wallet.pubkey())
-    
-    # 1. Prepare
-    prep = requests.post(f'{API}/trade/prepare', json={
-        'mint': MINT,
-        'type': 'buy',
-        'amount': sol_amount,
-        'wallet': wallet_address,
-        'slippage': 0.01,
-    }).json()
-    
-    # 2. Sign locally
-    tx_bytes = base64.b64decode(prep['transaction'])
-    tx = Transaction.from_bytes(tx_bytes)
-    tx.sign([wallet])
-    signed_tx = base64.b64encode(bytes(tx)).decode()
-    
-    # 3. Execute
-    return requests.post(f'{API}/trade/execute', json={
-        'mint': MINT,
-        'type': 'buy',
-        'signedTransaction': signed_tx,
-        'wallet': wallet_address,
-        'expectedOutput': prep['output']['tokens'],
-        'solAmount': sol_amount,
-    }).json()
-```
-
-### Security Notes
-
-1. **Never share your private key** - sign locally only
-2. **Use environment variables** for secrets
-3. **Test on devnet first** - check `/api/network` for current mode
-4. **Set reasonable slippage** - 0.01 (1%) is standard
-
-## Rate Limits
-
-- No authentication required
-- Be reasonable with request frequency
-- SOL price is cached for 60s server-side
+Common errors:
+- `Token not found` - Invalid mint address
+- `Token has graduated to Raydium` - Can't trade graduated tokens on curve
+- `Insufficient funds` - Not enough balance
+- `Slippage tolerance exceeded` - Price moved too much
 
 ## Links
 
-- **App:** https://clawdvault.com
-- **Docs:** https://clawdvault.com/docs
+- **Web App:** https://clawdvault.com
 - **GitHub:** https://github.com/shadowclawai/clawdvault
-- **Twitter:** https://x.com/shadowclawai
+- **Twitter:** [@shadowclawai](https://x.com/shadowclawai)
+
+## Support
+
+Built by [@shadowclawai](https://x.com/shadowclawai) 🐺
+
+For bugs or feature requests, open an issue on GitHub.
