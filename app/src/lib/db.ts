@@ -491,6 +491,8 @@ export interface RecordTradeParams {
 }
 
 export async function recordTrade(params: RecordTradeParams) {
+  console.log('[recordTrade] Called with:', JSON.stringify(params));
+  
   const token = await db().token.findUnique({
     where: { mint: params.mint },
   });
@@ -499,27 +501,104 @@ export async function recordTrade(params: RecordTradeParams) {
     throw new Error('Token not found');
   }
   
-  const { protocolFee, creatorFee, totalFee } = calculateFees(params.solAmount);
+  // Validate params
+  if (!params.solAmount || isNaN(params.solAmount)) {
+    console.error('[recordTrade] Invalid solAmount:', params.solAmount);
+    throw new Error('Invalid solAmount');
+  }
+  if (!params.tokenAmount || isNaN(params.tokenAmount)) {
+    console.error('[recordTrade] Invalid tokenAmount:', params.tokenAmount);
+    throw new Error('Invalid tokenAmount');
+  }
   
-  const trade = await db().trade.create({
-    data: {
-      tokenId: token.id,
-      tokenMint: params.mint,
-      trader: params.wallet,
-      tradeType: params.type,
-      solAmount: params.solAmount,
-      tokenAmount: params.tokenAmount,
-      priceSol: calculatePrice(
-        Number(token.virtualSolReserves),
-        Number(token.virtualTokenReserves)
-      ),
-      totalFee,
-      protocolFee,
-      creatorFee,
-      signature: params.signature,
-      createdAt: params.timestamp || new Date(),
-    },
+  const fees = calculateFees(params.solAmount);
+  const totalFee = fees.total;
+  const protocolFee = fees.protocol;
+  const creatorFee = fees.creator;
+  
+  // Current reserves
+  const virtualSol = Number(token.virtualSolReserves);
+  const virtualTokens = Number(token.virtualTokenReserves);
+  const realSol = Number(token.realSolReserves);
+  const realTokens = Number(token.realTokenReserves);
+  
+  console.log('[recordTrade] Current reserves:', { virtualSol, virtualTokens, realSol, realTokens });
+  
+  // Calculate new reserves based on trade type
+  let newVirtualSol: number = virtualSol;
+  let newVirtualTokens: number = virtualTokens;
+  let newRealSol: number = realSol;
+  let newRealTokens: number = realTokens;
+  
+  const invariant = virtualSol * virtualTokens;
+  
+  console.log('[recordTrade] Trade type:', params.type, 'solAmount:', params.solAmount, 'tokenAmount:', params.tokenAmount);
+  
+  if (params.type === 'buy') {
+    // SOL goes in, tokens come out
+    newVirtualSol = virtualSol + params.solAmount;
+    newVirtualTokens = invariant / newVirtualSol;
+    const solAfterFee = params.solAmount - totalFee;
+    newRealSol = realSol + solAfterFee;
+    newRealTokens = realTokens - params.tokenAmount;
+  } else if (params.type === 'sell') {
+    // Tokens go in, SOL comes out
+    newVirtualTokens = virtualTokens + params.tokenAmount;
+    newVirtualSol = invariant / newVirtualTokens;
+    const solOut = virtualSol - newVirtualSol;
+    const solAfterFee = solOut - totalFee;
+    newRealSol = Math.max(0, realSol - solAfterFee);
+    newRealTokens = realTokens + params.tokenAmount;
+  } else {
+    console.error('[recordTrade] Invalid trade type:', params.type);
+    throw new Error(`Invalid trade type: ${params.type}`);
+  }
+  
+  console.log('[recordTrade] New reserves:', { newVirtualSol, newVirtualTokens, newRealSol, newRealTokens });
+  
+  // Ensure no NaN values
+  if (isNaN(newVirtualSol) || isNaN(newVirtualTokens) || isNaN(newRealSol) || isNaN(newRealTokens)) {
+    console.error('[recordTrade] NaN detected in reserves calculation!');
+    throw new Error('Invalid reserve calculation - NaN detected');
+  }
+  
+  // Use transaction to update token and create trade atomically
+  const result = await db().$transaction(async (tx) => {
+    // Update token reserves (using Prisma.Decimal for proper precision)
+    const updateData = {
+      virtualSolReserves: new Prisma.Decimal(newVirtualSol.toString()),
+      virtualTokenReserves: new Prisma.Decimal(newVirtualTokens.toString()),
+      realSolReserves: new Prisma.Decimal(newRealSol.toString()),
+      realTokenReserves: new Prisma.Decimal(newRealTokens.toString()),
+      graduated: newRealSol >= GRADUATION_THRESHOLD_SOL,
+    };
+    console.log('[recordTrade] Update data:', updateData);
+    
+    const updatedToken = await tx.token.update({
+      where: { mint: params.mint },
+      data: updateData,
+    });
+    
+    // Create trade record
+    const trade = await tx.trade.create({
+      data: {
+        tokenId: token.id,
+        tokenMint: params.mint,
+        trader: params.wallet,
+        tradeType: params.type,
+        solAmount: params.solAmount,
+        tokenAmount: params.tokenAmount,
+        priceSol: newVirtualSol / newVirtualTokens,
+        totalFee,
+        protocolFee,
+        creatorFee,
+        signature: params.signature,
+        createdAt: params.timestamp || new Date(),
+      },
+    });
+    
+    return { trade, token: updatedToken };
   });
   
-  return trade;
+  return result.trade;
 }
