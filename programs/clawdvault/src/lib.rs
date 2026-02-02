@@ -73,28 +73,17 @@ pub mod clawdvault {
         require!(symbol.len() <= 10, ClawdVaultError::SymbolTooLong);
         require!(uri.len() <= 200, ClawdVaultError::UriTooLong);
 
-        let curve = &mut ctx.accounts.bonding_curve;
-        let config = &mut ctx.accounts.config;
-        
-        // Initialize bonding curve state
-        curve.creator = ctx.accounts.creator.key();
-        curve.mint = ctx.accounts.mint.key();
-        curve.virtual_sol_reserves = INITIAL_VIRTUAL_SOL;
-        curve.virtual_token_reserves = INITIAL_VIRTUAL_TOKENS;
-        curve.real_sol_reserves = 0;
-        curve.real_token_reserves = TOTAL_SUPPLY;
-        curve.token_total_supply = TOTAL_SUPPLY;
-        curve.graduated = false;
-        curve.created_at = Clock::get()?.unix_timestamp;
-        curve.bump = ctx.bumps.bonding_curve;
-        curve.sol_vault_bump = ctx.bumps.sol_vault;
-        
-        // Mint total supply to token vault (curve holds all tokens initially)
+        // Capture values before mutable borrow
+        let bump = ctx.bumps.bonding_curve;
+        let sol_vault_bump = ctx.bumps.sol_vault;
         let mint_key = ctx.accounts.mint.key();
+        let creator_key = ctx.accounts.creator.key();
+        
+        // Mint total supply to token vault first (needs bonding_curve as signer)
         let seeds = &[
             CURVE_SEED,
             mint_key.as_ref(),
-            &[curve.bump],
+            &[bump],
         ];
         let signer_seeds = &[&seeds[..]];
         
@@ -111,13 +100,28 @@ pub mod clawdvault {
             TOTAL_SUPPLY,
         )?;
         
+        // Now initialize bonding curve state
+        let curve = &mut ctx.accounts.bonding_curve;
+        curve.creator = creator_key;
+        curve.mint = mint_key;
+        curve.virtual_sol_reserves = INITIAL_VIRTUAL_SOL;
+        curve.virtual_token_reserves = INITIAL_VIRTUAL_TOKENS;
+        curve.real_sol_reserves = 0;
+        curve.real_token_reserves = TOTAL_SUPPLY;
+        curve.token_total_supply = TOTAL_SUPPLY;
+        curve.graduated = false;
+        curve.created_at = Clock::get()?.unix_timestamp;
+        curve.bump = bump;
+        curve.sol_vault_bump = sol_vault_bump;
+        
         // Update protocol stats
+        let config = &mut ctx.accounts.config;
         config.total_tokens_created = config.total_tokens_created.checked_add(1)
             .ok_or(ClawdVaultError::MathOverflow)?;
         
         msg!("🐺 Token created: {} ({})", name, symbol);
-        msg!("Mint: {}", ctx.accounts.mint.key());
-        msg!("Creator: {}", curve.creator);
+        msg!("Mint: {}", mint_key);
+        msg!("Creator: {}", creator_key);
         msg!("Initial price: {} SOL per token", 
             INITIAL_VIRTUAL_SOL as f64 / INITIAL_VIRTUAL_TOKENS as f64);
         
@@ -128,35 +132,36 @@ pub mod clawdvault {
     pub fn buy(ctx: Context<Buy>, sol_amount: u64, min_tokens_out: u64) -> Result<()> {
         require!(sol_amount > 0, ClawdVaultError::ZeroAmount);
         
-        let curve = &mut ctx.accounts.bonding_curve;
-        let config = &ctx.accounts.config;
-        
+        // Read curve state (immutable first)
+        let curve = &ctx.accounts.bonding_curve;
         require!(!curve.graduated, ClawdVaultError::AlreadyGraduated);
         
-        // Calculate tokens out using constant product formula
-        // k = virtual_sol * virtual_tokens (invariant)
-        // new_virtual_tokens = k / new_virtual_sol
-        // tokens_out = old_virtual_tokens - new_virtual_tokens
+        // Capture values we need before any borrows
+        let mint_key = curve.mint;
+        let curve_bump = curve.bump;
+        let old_virtual_sol = curve.virtual_sol_reserves;
+        let old_virtual_tokens = curve.virtual_token_reserves;
+        let old_real_tokens = curve.real_token_reserves;
         
-        let new_virtual_sol = curve.virtual_sol_reserves
+        // Calculate tokens out using constant product formula
+        let new_virtual_sol = old_virtual_sol
             .checked_add(sol_amount)
             .ok_or(ClawdVaultError::MathOverflow)?;
         
-        // Use u128 for intermediate calculation to prevent overflow
-        let invariant = (curve.virtual_sol_reserves as u128)
-            .checked_mul(curve.virtual_token_reserves as u128)
+        let invariant = (old_virtual_sol as u128)
+            .checked_mul(old_virtual_tokens as u128)
             .ok_or(ClawdVaultError::MathOverflow)?;
         
         let new_virtual_tokens = invariant
             .checked_div(new_virtual_sol as u128)
             .ok_or(ClawdVaultError::MathOverflow)? as u64;
         
-        let tokens_out = curve.virtual_token_reserves
+        let tokens_out = old_virtual_tokens
             .checked_sub(new_virtual_tokens)
             .ok_or(ClawdVaultError::MathOverflow)?;
         
         require!(tokens_out >= min_tokens_out, ClawdVaultError::SlippageExceeded);
-        require!(tokens_out <= curve.real_token_reserves, ClawdVaultError::InsufficientLiquidity);
+        require!(tokens_out <= old_real_tokens, ClawdVaultError::InsufficientLiquidity);
         
         // Calculate fees
         let total_fee = sol_amount
@@ -214,11 +219,10 @@ pub mod clawdvault {
         )?;
         
         // Transfer tokens from vault to buyer
-        let mint_key = curve.mint;
         let seeds = &[
             CURVE_SEED,
             mint_key.as_ref(),
-            &[curve.bump],
+            &[curve_bump],
         ];
         let signer_seeds = &[&seeds[..]];
         
@@ -235,7 +239,8 @@ pub mod clawdvault {
             tokens_out,
         )?;
         
-        // Update curve state
+        // Now update curve state (mutable borrow after CPIs)
+        let curve = &mut ctx.accounts.bonding_curve;
         curve.virtual_sol_reserves = new_virtual_sol;
         curve.virtual_token_reserves = new_virtual_tokens;
         curve.real_sol_reserves = curve.real_sol_reserves
