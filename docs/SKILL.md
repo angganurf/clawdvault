@@ -18,7 +18,9 @@ curl -X POST https://clawdvault.com/api/create \
   -d '{
     "name": "My Token",
     "symbol": "MTK",
-    "description": "A token by my agent"
+    "description": "A token by my agent",
+    "creator": "YourWalletAddress...",
+    "initialBuy": 0.5
   }'
 ```
 
@@ -32,38 +34,93 @@ Response:
     "symbol": "MTK",
     "price_sol": 0.000028,
     "market_cap_sol": 30.0
+  },
+  "initialBuy": {
+    "sol_spent": 0.5,
+    "tokens_received": 17857142
   }
 }
-```
-
-### Buy Tokens
-
-```bash
-curl -X POST https://clawdvault.com/api/trade \
-  -H "Content-Type: application/json" \
-  -d '{
-    "mint": "ABC123...",
-    "type": "buy",
-    "amount": 0.5
-  }'
-```
-
-### Sell Tokens
-
-```bash
-curl -X POST https://clawdvault.com/api/trade \
-  -H "Content-Type: application/json" \
-  -d '{
-    "mint": "ABC123...",
-    "type": "sell",
-    "amount": 1000000
-  }'
 ```
 
 ### Get Quote (without executing)
 
 ```bash
 curl "https://clawdvault.com/api/trade?mint=ABC123...&type=buy&amount=1"
+```
+
+## Trading
+
+### ⚠️ Production Trading (Wallet-Signed)
+
+**The simple `/api/trade` POST endpoint is disabled in production for security.**
+
+Real trades require wallet signing to prevent fake trades:
+
+#### Step 1: Prepare Transaction
+```bash
+curl -X POST https://clawdvault.com/api/trade/prepare \
+  -H "Content-Type: application/json" \
+  -d '{
+    "mint": "ABC123...",
+    "type": "buy",
+    "amount": 0.5,
+    "wallet": "YourWalletAddress..."
+  }'
+```
+
+Response:
+```json
+{
+  "success": true,
+  "transaction": "base64-encoded-unsigned-tx",
+  "type": "buy",
+  "input": { "sol": 0.5, "fee": 0.005 },
+  "output": { "tokens": 17857142, "minTokens": 17678570 },
+  "priceImpact": 1.67
+}
+```
+
+#### Step 2: Sign with Wallet
+Sign the `transaction` with your Solana wallet (Phantom, Solflare, etc.)
+
+#### Step 3: Execute Signed Transaction
+```bash
+curl -X POST https://clawdvault.com/api/trade/execute \
+  -H "Content-Type: application/json" \
+  -d '{
+    "signedTransaction": "base64SignedTx...",
+    "mint": "ABC123...",
+    "type": "buy",
+    "wallet": "YourWalletAddress...",
+    "solAmount": 0.5,
+    "tokenAmount": 17857142
+  }'
+```
+
+Response:
+```json
+{
+  "success": true,
+  "signature": "5xyz...",
+  "explorer": "https://explorer.solana.com/tx/5xyz..."
+}
+```
+
+### Development/Testing Only
+
+The simple POST `/api/trade` endpoint only works:
+- In development mode (`NODE_ENV !== 'production'`)
+- Or with `ADMIN_API_KEY` environment variable set and provided
+
+```bash
+# Dev only - not available in production!
+curl -X POST https://localhost:3000/api/trade \
+  -H "Content-Type: application/json" \
+  -d '{
+    "mint": "ABC123...",
+    "type": "buy",
+    "amount": 0.5
+  }'
 ```
 
 ## API Reference
@@ -79,6 +136,8 @@ Create a new token on the bonding curve.
 | `symbol` | string | ✅ | Token symbol (max 10 chars) |
 | `description` | string | ❌ | Token description |
 | `image` | string | ❌ | Image URL |
+| `creator` | string | ✅ | Creator wallet address |
+| `initialBuy` | number | ❌ | SOL to buy at launch (max 100) |
 | `twitter` | string | ❌ | Twitter handle |
 | `telegram` | string | ❌ | Telegram group |
 | `website` | string | ❌ | Website URL |
@@ -89,7 +148,11 @@ Create a new token on the bonding curve.
   "success": true,
   "mint": "string",
   "token": { ... },
-  "signature": "string"
+  "signature": "string",
+  "initialBuy": {
+    "sol_spent": 0.5,
+    "tokens_received": 17857142
+  }
 }
 ```
 
@@ -102,7 +165,7 @@ List all tokens.
 |-------|------|---------|-------------|
 | `page` | int | 1 | Page number |
 | `per_page` | int | 20 | Results per page |
-| `sort` | string | "created_at" | Sort by: created_at, market_cap, volume, price |
+| `sort` | string | "created_at" | Sort by: created_at, market_cap |
 | `graduated` | bool | - | Filter by graduation status |
 
 **Response:**
@@ -128,34 +191,72 @@ Get token details and recent trades.
     "symbol": "string",
     "price_sol": 0.000028,
     "market_cap_sol": 30.0,
-    "volume_24h": 10.5,
+    "real_sol_reserves": 1.5,
     "graduated": false,
     ...
   },
-  "trades": [...]
+  "trades": [
+    {
+      "id": "...",
+      "type": "buy",
+      "trader": "WalletAddress...",
+      "solAmount": 0.5,
+      "tokenAmount": 17857142,
+      "signature": "5xyz...",
+      "executedAt": "2026-02-02T..."
+    }
+  ]
 }
 ```
 
-### `POST /api/trade`
+### `POST /api/trade/prepare`
 
-Execute a trade on the bonding curve.
+Prepare a trade transaction for wallet signing.
 
 **Request Body:**
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
 | `mint` | string | ✅ | Token mint address |
 | `type` | string | ✅ | "buy" or "sell" |
-| `amount` | number | ✅ | SOL amount (buy) or token amount (sell) |
-| `slippage` | number | ❌ | Max slippage % (default 1%) |
+| `amount` | number | ✅ | SOL (buy) or tokens (sell) |
+| `wallet` | string | ✅ | Your Solana wallet address |
+| `slippage` | number | ❌ | Tolerance (default 0.01 = 1%) |
 
 **Response:**
 ```json
 {
   "success": true,
-  "trade": { ... },
-  "signature": "string",
-  "tokens_received": 1000000,
-  "new_price": 0.00003
+  "transaction": "base64-encoded-tx",
+  "type": "buy",
+  "input": { "sol": 0.5, "fee": 0.005 },
+  "output": { "tokens": 17857142, "minTokens": 17678570 },
+  "priceImpact": 1.67,
+  "currentPrice": 0.000028,
+  "onChain": true
+}
+```
+
+### `POST /api/trade/execute`
+
+Execute a signed trade transaction.
+
+**Request Body:**
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `signedTransaction` | string | ✅ | Base64 signed transaction |
+| `mint` | string | ✅ | Token mint address |
+| `type` | string | ✅ | "buy" or "sell" |
+| `wallet` | string | ✅ | Your wallet address |
+| `solAmount` | number | ✅ | SOL amount in trade |
+| `tokenAmount` | number | ✅ | Token amount in trade |
+
+**Response:**
+```json
+{
+  "success": true,
+  "signature": "5xyz...",
+  "explorer": "https://explorer.solana.com/tx/5xyz...",
+  "slot": 123456789
 }
 ```
 
@@ -181,124 +282,16 @@ Get a quote without executing.
 }
 ```
 
-## On-Chain Trading (Wallet-Signed)
-
-For non-custodial trading where users sign transactions with their own wallet.
-
-### `POST /api/trade/prepare`
-
-Prepare a trade transaction for wallet signing.
-
-**Request Body:**
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `mint` | string | ✅ | Token mint address |
-| `type` | string | ✅ | "buy" or "sell" |
-| `amount` | number | ✅ | SOL (buy) or tokens (sell) |
-| `wallet` | string | ✅ | Your Solana wallet address |
-| `slippage` | number | ❌ | Tolerance (default 0.01 = 1%) |
-
-**Response:**
-```json
-{
-  "success": true,
-  "transaction": "base64-encoded-tx",
-  "type": "buy",
-  "input": { "sol": 0.5, "fee": 0.005 },
-  "output": { "tokens": 17857142, "minTokens": 17678570 },
-  "priceImpact": 1.67
-}
-```
-
-### `POST /api/trade/execute`
-
-Execute a signed trade transaction.
-
-**Request Body:**
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `signedTransaction` | string | ✅ | Base64 signed transaction |
-| `mint` | string | ✅ | Token mint address |
-| `type` | string | ✅ | "buy" or "sell" |
-| `wallet` | string | ✅ | Your wallet address |
-| `solAmount` | number | ✅ | SOL amount in trade |
-| `tokenAmount` | number | ✅ | Token amount in trade |
-
-**Response:**
-```json
-{
-  "success": true,
-  "signature": "5xyz...",
-  "explorer": "https://explorer.solana.com/tx/..."
-}
-```
-
-### `POST /api/token/prepare-create`
-
-Prepare a token creation transaction for wallet signing.
-
-**Request Body:**
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `creator` | string | ✅ | Your wallet address |
-| `name` | string | ✅ | Token name (max 32) |
-| `symbol` | string | ✅ | Token symbol (max 10) |
-| `uri` | string | ❌ | Metadata URI |
-| `initialBuy` | number | ❌ | SOL to buy at launch |
-
-**Response:**
-```json
-{
-  "success": true,
-  "transaction": "base64-encoded-tx",
-  "mint": "NewMintAddress...",
-  "initialBuy": {
-    "sol": 0.5,
-    "estimatedTokens": 17857142
-  }
-}
-```
-
-### `POST /api/token/execute-create`
-
-Execute a signed token creation transaction.
-
-**Request Body:**
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `signedTransaction` | string | ✅ | Base64 signed transaction |
-| `mint` | string | ✅ | Mint address from prepare |
-| `creator` | string | ✅ | Your wallet address |
-| `name` | string | ✅ | Token name |
-| `symbol` | string | ✅ | Token symbol |
-| `description` | string | ❌ | Token description |
-| `image` | string | ❌ | Image URL |
-| `twitter` | string | ❌ | Twitter handle |
-| `telegram` | string | ❌ | Telegram group |
-| `website` | string | ❌ | Website URL |
-| `initialBuy` | object | ❌ | `{ solAmount, estimatedTokens }` |
-
-**Response:**
-```json
-{
-  "success": true,
-  "token": { ... },
-  "signature": "5xyz...",
-  "mint": "MintAddress...",
-  "initialBuyTrade": { "id": "...", "solAmount": 0.5, "tokenAmount": 17857142 }
-}
-```
-
 ### `GET /api/network`
 
-Check network status and Anchor program availability.
+Check network status and program availability.
 
 **Response:**
 ```json
 {
   "success": true,
   "network": "devnet",
-  "mockMode": false,
+  "slot": 123456789,
   "anchorProgram": true,
   "programId": "GUyF2TVe32Cid4iGVt2F6wPYDhLSVmTUZBj2974outYM"
 }
@@ -333,13 +326,13 @@ sol_out = x - (x * y) / (y + tokens_in)
 ```
 
 ### Fees
-- 1% fee on all trades (100 basis points)
+- 1% fee on all trades (0.5% protocol + 0.5% creator)
 - Fee is deducted from the input amount
 
 ### Graduation
-- Threshold: 85 SOL real reserves (~$69K at $800 SOL)
+- **Threshold:** 120 SOL real reserves (~$69K at ~$575/SOL)
 - When reached, token graduates to Raydium AMM
-- Bonding curve trading stops, Raydium trading begins
+- Bonding curve trading stops, Raydium pool begins
 
 ## Token Parameters
 
@@ -348,54 +341,6 @@ All tokens launch with:
 - **Decimals:** 6
 - **Initial price:** ~0.000028 SOL per token
 - **Initial market cap:** ~30 SOL
-
-## Example: Full Agent Workflow
-
-```javascript
-// 1. Create a token
-const createRes = await fetch('https://clawdvault.com/api/create', {
-  method: 'POST',
-  headers: { 'Content-Type': 'application/json' },
-  body: JSON.stringify({
-    name: 'Wolf Pack Token',
-    symbol: 'WOLF',
-    description: 'The shadow wolf hunts',
-  }),
-});
-const { mint, token } = await createRes.json();
-console.log(`Created $${token.symbol} at ${mint}`);
-
-// 2. Buy some tokens
-const buyRes = await fetch('https://clawdvault.com/api/trade', {
-  method: 'POST',
-  headers: { 'Content-Type': 'application/json' },
-  body: JSON.stringify({
-    mint,
-    type: 'buy',
-    amount: 0.5, // 0.5 SOL
-  }),
-});
-const { tokens_received, new_price } = await buyRes.json();
-console.log(`Bought ${tokens_received} tokens, new price: ${new_price}`);
-
-// 3. Check token status
-const tokenRes = await fetch(`https://clawdvault.com/api/tokens/${mint}`);
-const { token: updatedToken } = await tokenRes.json();
-console.log(`Market cap: ${updatedToken.market_cap_sol} SOL`);
-
-// 4. Sell some tokens
-const sellRes = await fetch('https://clawdvault.com/api/trade', {
-  method: 'POST',
-  headers: { 'Content-Type': 'application/json' },
-  body: JSON.stringify({
-    mint,
-    type: 'sell',
-    amount: tokens_received / 2, // Sell half
-  }),
-});
-const { sol_received } = await sellRes.json();
-console.log(`Sold for ${sol_received} SOL`);
-```
 
 ## Error Handling
 
@@ -410,8 +355,8 @@ All errors return:
 Common errors:
 - `Token not found` - Invalid mint address
 - `Token has graduated to Raydium` - Can't trade graduated tokens on curve
-- `Insufficient funds` - Not enough balance
-- `Slippage tolerance exceeded` - Price moved too much
+- `Bonding curve not found on-chain` - Token not initialized on Solana
+- `Mock trades disabled` - Use wallet-signed flow in production
 
 ## Links
 
