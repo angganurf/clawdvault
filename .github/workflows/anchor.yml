@@ -3,26 +3,11 @@ name: Anchor Build & Deploy
 on:
   push:
     branches: [main]
-    paths:
-      - 'programs/**'
-      - 'Anchor.toml'
-      - 'Cargo.toml'
-      - '.github/workflows/anchor.yml'
   workflow_dispatch:
-    inputs:
-      network:
-        description: 'Network to deploy to'
-        required: true
-        default: 'devnet'
-        type: choice
-        options:
-          - devnet
-          - mainnet
 
 env:
-  SOLANA_VERSION: '1.18.17'
-  ANCHOR_VERSION: '0.30.1'
-  RUST_VERSION: '1.79.0'
+  SOLANA_VERSION: 1.18.17
+  ANCHOR_VERSION: 0.30.1
 
 jobs:
   build:
@@ -33,7 +18,7 @@ jobs:
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@master
         with:
-          toolchain: ${{ env.RUST_VERSION }}
+          toolchain: "1.79.0"
 
       - name: Cache Cargo
         uses: actions/cache@v4
@@ -42,24 +27,20 @@ jobs:
             ~/.cargo/registry
             ~/.cargo/git
             target
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          key: cargo-${{ hashFiles('**/Cargo.lock') }}
 
       - name: Install Solana
         run: |
-          SOLANA_RELEASE="v${{ env.SOLANA_VERSION }}"
-          sh -c "$(curl -sSfL https://release.solana.com/${SOLANA_RELEASE}/install)"
+          sh -c "$(curl -sSfL https://release.solana.com/v${SOLANA_VERSION}/install)"
           echo "$HOME/.local/share/solana/install/active_release/bin" >> $GITHUB_PATH
-        shell: bash
 
       - name: Install Anchor
-        run: |
-          cargo install --git https://github.com/coral-xyz/anchor --tag v${{ env.ANCHOR_VERSION }} anchor-cli --locked
+        run: cargo install --git https://github.com/coral-xyz/anchor --tag v${ANCHOR_VERSION} anchor-cli --locked
 
       - name: Verify Tools
         run: |
           solana --version
           anchor --version
-          rustc --version
 
       - name: Build Program
         run: anchor build
@@ -73,36 +54,3 @@ jobs:
             target/deploy/clawdvault-keypair.json
             target/idl/clawdvault.json
             target/types/clawdvault.ts
-
-  deploy-devnet:
-    needs: build
-    runs-on: ubuntu-latest
-    if: github.event_name == 'workflow_dispatch' && github.event.inputs.network == 'devnet'
-    environment: devnet
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Download Artifacts
-        uses: actions/download-artifact@v4
-        with:
-          name: program-artifacts
-          path: target/deploy
-
-      - name: Install Solana
-        run: |
-          SOLANA_RELEASE="v${{ env.SOLANA_VERSION }}"
-          sh -c "$(curl -sSfL https://release.solana.com/${SOLANA_RELEASE}/install)"
-          echo "$HOME/.local/share/solana/install/active_release/bin" >> $GITHUB_PATH
-        shell: bash
-
-      - name: Setup Wallet
-        run: |
-          mkdir -p ~/.config/solana
-          echo "${{ secrets.DEPLOYER_KEYPAIR }}" > ~/.config/solana/id.json
-          solana config set --url devnet
-
-      - name: Deploy
-        run: solana program deploy target/deploy/clawdvault.so --keypair target/deploy/clawdvault-keypair.json
-
-      - name: Output Program ID
-        run: echo "Program ID: $(solana-keygen pubkey target/deploy/clawdvault-keypair.json)"
