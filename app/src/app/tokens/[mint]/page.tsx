@@ -510,8 +510,8 @@ export default function TokenPage({ params }: { params: Promise<{ mint: string }
           </div>
 
           <div className="grid lg:grid-cols-3 gap-6">
-            {/* Stats */}
-            <div className="lg:col-span-2 space-y-6">
+            {/* Stats - order-2 on mobile so trade panel appears first */}
+            <div className="lg:col-span-2 space-y-6 order-2 lg:order-1">
               {/* Price & Market Cap */}
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <div className="bg-gray-800/50 rounded-xl p-4">
@@ -607,8 +607,8 @@ export default function TokenPage({ params }: { params: Promise<{ mint: string }
               />
             </div>
 
-            {/* Right Sidebar */}
-            <div className="space-y-6">
+            {/* Right Sidebar - order-1 on mobile so trade panel appears first */}
+            <div className="space-y-6 order-1 lg:order-2">
               {/* Trade Panel */}
               <div className="bg-gray-800/50 rounded-xl p-6 h-fit sticky top-6">
               <h3 className="text-white font-semibold mb-4">Trade</h3>
