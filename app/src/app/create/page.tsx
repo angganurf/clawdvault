@@ -144,6 +144,7 @@ export default function CreatePage() {
             name,
             symbol,
             uri: image || '',
+            initialBuy: initialBuy ? parseFloat(initialBuy) : undefined,
           }),
         });
         
@@ -510,11 +511,6 @@ export default function CreatePage() {
                 <p className="text-gray-500 text-sm mb-3">
                   Buy tokens with SOL when your token launches. You'll be the first holder!
                 </p>
-                {anchorAvailable && (
-                  <div className="bg-yellow-900/30 border border-yellow-600/50 rounded-lg p-3 mb-3 text-yellow-400 text-sm">
-                    ⚠️ Initial buy coming soon for on-chain mode. For now, buy after creating.
-                  </div>
-                )}
                 <div className="flex gap-2 mb-3">
                   {['0', '0.1', '0.5', '1', '2', '5'].map((amount) => (
                     <button

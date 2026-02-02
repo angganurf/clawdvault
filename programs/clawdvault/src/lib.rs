@@ -2,6 +2,12 @@ use anchor_lang::prelude::*;
 use anchor_lang::system_program;
 use anchor_spl::token::{self, Mint, Token, TokenAccount, Transfer, MintTo};
 use anchor_spl::associated_token::AssociatedToken;
+use anchor_spl::metadata::{
+    create_metadata_accounts_v3,
+    mpl_token_metadata::types::DataV2,
+    CreateMetadataAccountsV3,
+    Metadata,
+};
 
 #[cfg(not(feature = "no-entrypoint"))]
 use solana_security_txt::security_txt;
@@ -76,12 +82,13 @@ pub mod clawdvault {
         Ok(())
     }
 
-    /// Create a new token with bonding curve
+    /// Create a new token with bonding curve, metadata, and optional initial buy
     pub fn create_token(
         ctx: Context<CreateToken>,
         name: String,
         symbol: String,
         uri: String,
+        initial_buy_lamports: u64,  // 0 for no initial buy
     ) -> Result<()> {
         require!(name.len() <= 32, ClawdVaultError::NameTooLong);
         require!(symbol.len() <= 10, ClawdVaultError::SymbolTooLong);
@@ -93,7 +100,7 @@ pub mod clawdvault {
         let mint_key = ctx.accounts.mint.key();
         let creator_key = ctx.accounts.creator.key();
         
-        // Mint total supply to token vault first (needs bonding_curve as signer)
+        // Build signer seeds for bonding curve PDA
         let seeds = &[
             CURVE_SEED,
             mint_key.as_ref(),
@@ -101,6 +108,7 @@ pub mod clawdvault {
         ];
         let signer_seeds = &[&seeds[..]];
         
+        // Mint total supply to token vault (needs bonding_curve as signer)
         token::mint_to(
             CpiContext::new_with_signer(
                 ctx.accounts.token_program.to_account_info(),
@@ -114,7 +122,36 @@ pub mod clawdvault {
             TOTAL_SUPPLY,
         )?;
         
-        // Now initialize bonding curve state
+        // Create Metaplex metadata for the token
+        create_metadata_accounts_v3(
+            CpiContext::new_with_signer(
+                ctx.accounts.metadata_program.to_account_info(),
+                CreateMetadataAccountsV3 {
+                    metadata: ctx.accounts.metadata.to_account_info(),
+                    mint: ctx.accounts.mint.to_account_info(),
+                    mint_authority: ctx.accounts.bonding_curve.to_account_info(),
+                    payer: ctx.accounts.creator.to_account_info(),
+                    update_authority: ctx.accounts.bonding_curve.to_account_info(),
+                    system_program: ctx.accounts.system_program.to_account_info(),
+                    rent: ctx.accounts.rent.to_account_info(),
+                },
+                signer_seeds,
+            ),
+            DataV2 {
+                name: name.clone(),
+                symbol: symbol.clone(),
+                uri,
+                seller_fee_basis_points: 0,
+                creators: None,
+                collection: None,
+                uses: None,
+            },
+            true,  // is_mutable
+            true,  // update_authority_is_signer
+            None,  // collection_details
+        )?;
+        
+        // Initialize bonding curve state
         let curve = &mut ctx.accounts.bonding_curve;
         curve.creator = creator_key;
         curve.mint = mint_key;
@@ -136,8 +173,79 @@ pub mod clawdvault {
         msg!("🐺 Token created: {} ({})", name, symbol);
         msg!("Mint: {}", mint_key);
         msg!("Creator: {}", creator_key);
-        msg!("Initial price: {} SOL per token", 
-            INITIAL_VIRTUAL_SOL as f64 / INITIAL_VIRTUAL_TOKENS as f64);
+        
+        // Handle initial buy if specified
+        if initial_buy_lamports > 0 {
+            // Calculate tokens out using bonding curve math
+            let sol_after_fee = initial_buy_lamports
+                .checked_mul(BPS_DENOMINATOR - TOTAL_FEE_BPS)
+                .ok_or(ClawdVaultError::MathOverflow)?
+                .checked_div(BPS_DENOMINATOR)
+                .ok_or(ClawdVaultError::MathOverflow)?;
+            
+            let new_virtual_sol = curve.virtual_sol_reserves
+                .checked_add(sol_after_fee)
+                .ok_or(ClawdVaultError::MathOverflow)?;
+            
+            let invariant = (curve.virtual_sol_reserves as u128)
+                .checked_mul(curve.virtual_token_reserves as u128)
+                .ok_or(ClawdVaultError::MathOverflow)?;
+            
+            let new_virtual_tokens = invariant
+                .checked_div(new_virtual_sol as u128)
+                .ok_or(ClawdVaultError::MathOverflow)? as u64;
+            
+            let tokens_out = curve.virtual_token_reserves
+                .checked_sub(new_virtual_tokens)
+                .ok_or(ClawdVaultError::MathOverflow)?;
+            
+            // Transfer SOL from creator to sol_vault
+            system_program::transfer(
+                CpiContext::new(
+                    ctx.accounts.system_program.to_account_info(),
+                    system_program::Transfer {
+                        from: ctx.accounts.creator.to_account_info(),
+                        to: ctx.accounts.sol_vault.to_account_info(),
+                    },
+                ),
+                initial_buy_lamports,
+            )?;
+            
+            // Transfer tokens from vault to creator's token account
+            token::transfer(
+                CpiContext::new_with_signer(
+                    ctx.accounts.token_program.to_account_info(),
+                    Transfer {
+                        from: ctx.accounts.token_vault.to_account_info(),
+                        to: ctx.accounts.creator_token_account.to_account_info(),
+                        authority: ctx.accounts.bonding_curve.to_account_info(),
+                    },
+                    signer_seeds,
+                ),
+                tokens_out,
+            )?;
+            
+            // Update curve state
+            curve.virtual_sol_reserves = new_virtual_sol;
+            curve.virtual_token_reserves = new_virtual_tokens;
+            curve.real_sol_reserves = initial_buy_lamports;
+            curve.real_token_reserves = curve.real_token_reserves
+                .checked_sub(tokens_out)
+                .ok_or(ClawdVaultError::MathOverflow)?;
+            
+            // Calculate fees (for logging)
+            let total_fee = initial_buy_lamports
+                .checked_mul(TOTAL_FEE_BPS)
+                .ok_or(ClawdVaultError::MathOverflow)?
+                .checked_div(BPS_DENOMINATOR)
+                .ok_or(ClawdVaultError::MathOverflow)?;
+            
+            msg!("🎯 Initial buy: {} lamports -> {} tokens (fee: {} lamports)", 
+                initial_buy_lamports, tokens_out, total_fee);
+        }
+        
+        msg!("Initial price: {} lamports/token", 
+            curve.virtual_sol_reserves / (curve.virtual_token_reserves / 1_000_000));
         
         Ok(())
     }
@@ -513,9 +621,18 @@ pub struct CreateToken<'info> {
         payer = creator,
         mint::decimals = 6,
         mint::authority = bonding_curve,
-        mint::freeze_authority = bonding_curve,
+        // No freeze authority - removes the scary wallet warning
     )]
     pub mint: Account<'info, Mint>,
+    
+    /// CHECK: Metadata account created via CPI to Metaplex
+    #[account(
+        mut,
+        seeds = [b"metadata", metadata_program.key().as_ref(), mint.key().as_ref()],
+        bump,
+        seeds::program = metadata_program.key(),
+    )]
+    pub metadata: UncheckedAccount<'info>,
     
     #[account(
         init,
@@ -546,8 +663,18 @@ pub struct CreateToken<'info> {
     )]
     pub token_vault: Account<'info, TokenAccount>,
     
+    /// Creator's token account for initial buy (optional, created if needed)
+    #[account(
+        init_if_needed,
+        payer = creator,
+        associated_token::mint = mint,
+        associated_token::authority = creator,
+    )]
+    pub creator_token_account: Account<'info, TokenAccount>,
+    
     pub token_program: Program<'info, Token>,
     pub associated_token_program: Program<'info, AssociatedToken>,
+    pub metadata_program: Program<'info, Metadata>,
     pub system_program: Program<'info, System>,
     pub rent: Sysvar<'info, Rent>,
 }

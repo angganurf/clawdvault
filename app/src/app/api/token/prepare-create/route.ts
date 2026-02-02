@@ -16,6 +16,7 @@ interface PrepareCreateRequest {
   name: string;
   symbol: string;
   uri?: string;         // Metadata URI (optional)
+  initialBuy?: number;  // Initial buy in SOL (optional)
 }
 
 /**
@@ -69,13 +70,19 @@ export async function POST(request: Request) {
     // Generate new mint keypair
     const mintKeypair = Keypair.generate();
     
+    // Calculate initial buy in lamports
+    const initialBuyLamports = body.initialBuy 
+      ? BigInt(Math.floor(body.initialBuy * 1e9)) 
+      : BigInt(0);
+    
     // Build transaction
     const transaction = await client.buildCreateTokenTransaction(
       creatorPubkey,
       mintKeypair,
       body.name,
       body.symbol,
-      body.uri || ''
+      body.uri || '',
+      initialBuyLamports
     );
     
     // The mint keypair needs to sign the transaction
@@ -88,13 +95,28 @@ export async function POST(request: Request) {
       verifySignatures: false,
     });
     
+    // Calculate estimated tokens for initial buy
+    let estimatedTokens = 0;
+    if (initialBuyLamports > 0) {
+      const solAfterFee = Number(initialBuyLamports) * 0.99; // 1% fee
+      const virtualSol = 30e9; // Initial 30 SOL
+      const virtualTokens = 1e15; // Initial 1B tokens with 6 decimals
+      const newVirtualSol = virtualSol + solAfterFee;
+      const invariant = virtualSol * virtualTokens;
+      const newVirtualTokens = invariant / newVirtualSol;
+      estimatedTokens = (virtualTokens - newVirtualTokens) / 1e6; // Convert to whole tokens
+    }
+    
     return NextResponse.json({
       success: true,
       transaction: serialized.toString('base64'),
       mint: mintKeypair.publicKey.toBase58(),
-      // Note: We partially sign with mint, user just needs to sign with their wallet
       programId: PROGRAM_ID.toBase58(),
       network: process.env.SOLANA_NETWORK || 'devnet',
+      initialBuy: body.initialBuy ? {
+        sol: body.initialBuy,
+        estimatedTokens: Math.floor(estimatedTokens),
+      } : null,
     });
     
   } catch (error) {

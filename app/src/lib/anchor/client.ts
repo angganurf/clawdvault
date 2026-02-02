@@ -22,6 +22,79 @@ import {
 // Program ID - DEPLOYED TO DEVNET 2026-02-02
 export const PROGRAM_ID = new PublicKey('GUyF2TVe32Cid4iGVt2F6wPYDhLSVmTUZBj2974outYM');
 
+// Metaplex Token Metadata Program
+const TOKEN_METADATA_PROGRAM_ID = new PublicKey('metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s');
+
+/**
+ * Find the metadata PDA for a mint
+ */
+export function findMetadataPDA(mint: PublicKey): [PublicKey, number] {
+  return PublicKey.findProgramAddressSync(
+    [Buffer.from('metadata'), TOKEN_METADATA_PROGRAM_ID.toBuffer(), mint.toBuffer()],
+    TOKEN_METADATA_PROGRAM_ID
+  );
+}
+
+/**
+ * Build CreateMetadataAccountV3 instruction
+ */
+function buildCreateMetadataInstruction(
+  metadataPDA: PublicKey,
+  mint: PublicKey,
+  mintAuthority: PublicKey,
+  payer: PublicKey,
+  updateAuthority: PublicKey,
+  name: string,
+  symbol: string,
+  uri: string
+): TransactionInstruction {
+  // CreateMetadataAccountV3 instruction data
+  // Discriminator: 33
+  const nameBuffer = Buffer.from(name.slice(0, 32));
+  const symbolBuffer = Buffer.from(symbol.slice(0, 10));
+  const uriBuffer = Buffer.from(uri.slice(0, 200));
+  
+  // Build instruction data (Borsh serialization)
+  const data = Buffer.concat([
+    Buffer.from([33]), // CreateMetadataAccountV3 discriminator
+    // Name (string: 4-byte length + data)
+    Buffer.from([nameBuffer.length, 0, 0, 0]),
+    nameBuffer,
+    // Symbol (string: 4-byte length + data)
+    Buffer.from([symbolBuffer.length, 0, 0, 0]),
+    symbolBuffer,
+    // URI (string: 4-byte length + data)
+    Buffer.from([uriBuffer.length, 0, 0, 0]),
+    uriBuffer,
+    // Seller fee basis points (u16)
+    Buffer.from([0, 0]),
+    // Creators (Option<Vec>): None
+    Buffer.from([0]),
+    // Collection (Option): None
+    Buffer.from([0]),
+    // Uses (Option): None
+    Buffer.from([0]),
+    // Is mutable (bool)
+    Buffer.from([1]),
+    // Collection details (Option): None
+    Buffer.from([0]),
+  ]);
+  
+  return new TransactionInstruction({
+    programId: TOKEN_METADATA_PROGRAM_ID,
+    keys: [
+      { pubkey: metadataPDA, isSigner: false, isWritable: true },
+      { pubkey: mint, isSigner: false, isWritable: false },
+      { pubkey: mintAuthority, isSigner: true, isWritable: false },
+      { pubkey: payer, isSigner: true, isWritable: true },
+      { pubkey: updateAuthority, isSigner: false, isWritable: false },
+      { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
+      { pubkey: new PublicKey('SysvarRent111111111111111111111111111111111'), isSigner: false, isWritable: false },
+    ],
+    data,
+  });
+}
+
 // Seeds
 const CONFIG_SEED = Buffer.from('config');
 const CURVE_SEED = Buffer.from('bonding_curve');
@@ -200,23 +273,26 @@ export class ClawdVaultClient {
   }
   
   /**
-   * Build a create token transaction
+   * Build a create token transaction with metadata and optional initial buy
    * 
    * The mint keypair must be generated client-side and signed by the user.
    * Anchor handles mint account creation via `init` constraint.
-   * Anchor discriminator for "create_token": sha256("global:create_token")[0..8]
+   * Now includes Metaplex metadata creation and optional initial buy.
    */
   async buildCreateTokenTransaction(
     creator: PublicKey,
     mintKeypair: { publicKey: PublicKey },
     name: string,
     symbol: string,
-    uri: string
+    uri: string,
+    initialBuyLamports: bigint = BigInt(0)
   ): Promise<Transaction> {
     const [configPDA] = findConfigPDA();
     const [curvePDA] = findBondingCurvePDA(mintKeypair.publicKey);
     const [solVaultPDA] = findSolVaultPDA(mintKeypair.publicKey);
+    const [metadataPDA] = findMetadataPDA(mintKeypair.publicKey);
     const tokenVault = await findTokenVaultAddress(mintKeypair.publicKey, curvePDA);
+    const creatorTokenAccount = await getAssociatedTokenAddress(mintKeypair.publicKey, creator);
     
     // Anchor discriminator for "create_token" = first 8 bytes of sha256("global:create_token")
     const discriminator = Buffer.from([84, 52, 204, 228, 24, 140, 234, 75]);
@@ -234,9 +310,9 @@ export class ClawdVaultClient {
       symbolBytes,
       Buffer.from([uriBytes.length, 0, 0, 0]), // u32 length
       uriBytes,
+      writeU64(initialBuyLamports), // initial_buy_lamports: u64
     ]);
     
-    // Anchor handles mint creation via `init` - just pass the accounts
     // Account order must match CreateToken struct in program
     const createTokenIx = new TransactionInstruction({
       programId: PROGRAM_ID,
@@ -244,11 +320,14 @@ export class ClawdVaultClient {
         { pubkey: creator, isSigner: true, isWritable: true },
         { pubkey: configPDA, isSigner: false, isWritable: true },
         { pubkey: mintKeypair.publicKey, isSigner: true, isWritable: true },
+        { pubkey: metadataPDA, isSigner: false, isWritable: true },
         { pubkey: curvePDA, isSigner: false, isWritable: true },
         { pubkey: solVaultPDA, isSigner: false, isWritable: true },
         { pubkey: tokenVault, isSigner: false, isWritable: true },
+        { pubkey: creatorTokenAccount, isSigner: false, isWritable: true },
         { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
         { pubkey: ASSOCIATED_TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
+        { pubkey: TOKEN_METADATA_PROGRAM_ID, isSigner: false, isWritable: false },
         { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
         { pubkey: new PublicKey('SysvarRent111111111111111111111111111111111'), isSigner: false, isWritable: false },
       ],
