@@ -51,9 +51,17 @@ jobs:
       - name: Install Anchor
         run: |
           cargo install --git https://github.com/coral-xyz/anchor --tag v${{ env.ANCHOR_VERSION }} anchor-cli --locked
+          echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+
+      - name: Verify Tools
+        run: |
+          solana --version
+          anchor --version
+          rustc --version
 
       - name: Build Program
-        run: anchor build
+        run: |
+          anchor build
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
