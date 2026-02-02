@@ -4,7 +4,7 @@ import { executeTrade, getToken } from '@/lib/db';
 export const dynamic = 'force-dynamic';
 
 // Admin API key for mock trades (dev/testing only)
-const ADMIN_API_KEY = process.env.ADMIN_API_KEY || 'dev_admin_key_change_in_production';
+const ADMIN_API_KEY = process.env.ADMIN_API_KEY;
 const IS_PRODUCTION = process.env.NODE_ENV === 'production';
 
 interface TradeRequest {
@@ -19,18 +19,25 @@ export async function POST(request: Request) {
     const authHeader = request.headers.get('Authorization');
     const apiKey = authHeader?.replace('Bearer ', '') || '';
     
-    // In production, this endpoint requires admin API key
-    // Normal users should use /api/trade/execute with wallet-signed transactions
-    if (IS_PRODUCTION && apiKey !== ADMIN_API_KEY) {
+    // In production, completely disable if no ADMIN_API_KEY is set
+    if (IS_PRODUCTION && !ADMIN_API_KEY) {
       return NextResponse.json(
-        { success: false, error: 'This endpoint is disabled. Use /api/trade/prepare and /api/trade/execute for real trades.' },
+        { success: false, error: 'Mock trades disabled. Use /api/trade/prepare and /api/trade/execute for real trades.' },
         { status: 403 }
       );
     }
     
-    // In dev, warn if no admin key but allow for testing
-    if (!IS_PRODUCTION && apiKey !== ADMIN_API_KEY) {
-      console.warn(`[WARN] Mock trade without admin key from: ${apiKey || 'anonymous'}`);
+    // In production with ADMIN_API_KEY set, require it
+    if (IS_PRODUCTION && apiKey !== ADMIN_API_KEY) {
+      return NextResponse.json(
+        { success: false, error: 'Invalid admin key. Use /api/trade/execute for real trades.' },
+        { status: 403 }
+      );
+    }
+    
+    // In dev, allow but log
+    if (!IS_PRODUCTION) {
+      console.log(`[DEV] Mock trade from: ${apiKey || 'anonymous'}`);
     }
     
     const body: TradeRequest = await request.json();
