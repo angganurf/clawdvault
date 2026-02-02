@@ -598,7 +598,7 @@ export default function TokenPage({ params }: { params: Promise<{ mint: string }
               {/* Graduation Progress */}
               <div className="bg-gray-800/50 rounded-xl p-4">
                 <div className="flex justify-between text-sm mb-2">
-                  <span className="text-gray-400">Graduation Progress</span>
+                  <span className="text-gray-400">Bonding Curve Progress</span>
                   <span className="text-orange-400">{progressPercent.toFixed(1)}%</span>
                 </div>
                 <div className="h-3 bg-gray-700 rounded-full overflow-hidden">
@@ -615,6 +615,9 @@ export default function TokenPage({ params }: { params: Promise<{ mint: string }
                       : formatNumber(graduationMarketCap.sol) + ' SOL mcap goal'
                     }
                   </span>
+                </div>
+                <div className="text-xs text-gray-500 mt-2 text-center">
+                  🔜 Raydium graduation coming in future contract update
                 </div>
               </div>
 
@@ -671,25 +674,17 @@ export default function TokenPage({ params }: { params: Promise<{ mint: string }
               <div className="bg-gray-800/50 rounded-xl p-6 h-fit sticky top-6">
               <h3 className="text-white font-semibold mb-4">Trade</h3>
 
-              {token.graduated ? (
-                <div className="text-center py-6">
-                  <div className="text-4xl mb-2">🎓</div>
-                  <div className="text-white font-medium mb-2">Graduated!</div>
-                  <div className="text-gray-400 text-sm mb-4">
-                    This token has graduated to Raydium.
+              {token.graduated && (
+                <div className="text-center py-4 mb-4 bg-purple-900/30 rounded-lg border border-purple-500/30">
+                  <div className="text-2xl mb-1">🎓</div>
+                  <div className="text-purple-300 font-medium text-sm">Graduation Threshold Reached!</div>
+                  <div className="text-gray-400 text-xs">
+                    Raydium migration coming in future update. Trading continues below.
                   </div>
-                  <a
-                    href={`https://raydium.io/swap/?inputCurrency=sol&outputCurrency=${token.mint}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-block bg-orange-500 hover:bg-orange-400 text-white px-6 py-2 rounded-lg transition"
-                  >
-                    Trade on Raydium
-                  </a>
                 </div>
-              ) : (
-                <>
-                  {/* User Balance - show if connected */}
+              )}
+              
+              {/* User Balance - show if connected */}
                   {connected && (
                     <div className="bg-gray-700/50 rounded-lg p-3 mb-4">
                       <div className="flex justify-between text-sm">
@@ -896,8 +891,6 @@ export default function TokenPage({ params }: { params: Promise<{ mint: string }
                   <div className="text-gray-500 text-xs text-center mt-4">
                     1% fee on all trades
                   </div>
-                </>
-              )}
               </div>
 
               {/* Holder Distribution */}

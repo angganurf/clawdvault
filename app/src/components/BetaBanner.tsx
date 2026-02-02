@@ -2,12 +2,12 @@
 
 import { useState, useEffect } from 'react';
 
-export default function MockBanner() {
+export default function BetaBanner() {
   const [dismissed, setDismissed] = useState(true); // Start hidden to avoid flash
 
   useEffect(() => {
     // Check if user has dismissed the banner
-    const wasDismissed = localStorage.getItem('mockBannerDismissed');
+    const wasDismissed = localStorage.getItem('betaBannerDismissed');
     if (!wasDismissed) {
       setDismissed(false);
     }
@@ -15,20 +15,19 @@ export default function MockBanner() {
 
   const handleDismiss = () => {
     setDismissed(true);
-    localStorage.setItem('mockBannerDismissed', 'true');
+    localStorage.setItem('betaBannerDismissed', 'true');
   };
 
   if (dismissed) return null;
 
   return (
-    <div className="bg-gradient-to-r from-orange-600 to-yellow-500 text-white px-4 py-2.5 text-center text-sm relative">
+    <div className="bg-gradient-to-r from-purple-600 to-orange-500 text-white px-4 py-2.5 text-center text-sm relative">
       <div className="max-w-4xl mx-auto flex items-center justify-center gap-2 flex-wrap">
-        <span className="text-lg">🚧</span>
+        <span className="text-lg">🐺</span>
         <span>
-          <strong>Preview Mode</strong> — Currently running in mock mode. 
-          Real Solana integration coming soon!
+          <strong>Beta</strong> — Raydium graduation coming soon via on-chain contract upgrade.
         </span>
-        <span className="text-lg">🦀</span>
+        <span className="text-lg">🚀</span>
       </div>
       <button
         onClick={handleDismiss}

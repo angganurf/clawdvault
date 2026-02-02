@@ -8,10 +8,10 @@ skip-lint = false
 clawdvault = "GUyF2TVe32Cid4iGVt2F6wPYDhLSVmTUZBj2974outYM"
 
 [programs.localnet]
-clawdvault = "GMdG56oR3Qpc8NT6TwAtwdwNggxRADn6VAYbotLF1aM"
+clawdvault = "GUyF2TVe32Cid4iGVt2F6wPYDhLSVmTUZBj2974outYM"
 
 [programs.mainnet]
-clawdvault = "GMdG56oR3Qpc8NT6TwAtwdwNggxRADn6VAYbotLF1aM"
+clawdvault = "GUyF2TVe32Cid4iGVt2F6wPYDhLSVmTUZBj2974outYM"
 
 [registry]
 url = "https://api.apr.dev"
