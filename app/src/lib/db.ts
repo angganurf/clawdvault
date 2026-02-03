@@ -152,6 +152,29 @@ export async function getToken(mint: string): Promise<Token | null> {
   });
 }
 
+// Update token fields
+export async function updateToken(mint: string, data: {
+  graduated?: boolean;
+  raydiumPoolId?: string;
+  virtualSolReserves?: number;
+  virtualTokenReserves?: number;
+  realSolReserves?: number;
+  realTokenReserves?: number;
+}): Promise<Token | null> {
+  const updated = await db().token.update({
+    where: { mint },
+    data: {
+      graduated: data.graduated,
+      raydiumPool: data.raydiumPoolId,  // maps to raydium_pool column
+      virtualSolReserves: data.virtualSolReserves,
+      virtualTokenReserves: data.virtualTokenReserves,
+      realSolReserves: data.realSolReserves,
+      realTokenReserves: data.realTokenReserves,
+    },
+  });
+  return toApiToken(updated);
+}
+
 // Get token trades
 export async function getTokenTrades(mint: string, limit = 50): Promise<Trade[]> {
   const trades = await db().trade.findMany({

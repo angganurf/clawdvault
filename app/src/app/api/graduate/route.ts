@@ -120,13 +120,21 @@ export async function GET(request: Request) {
  * Trigger graduation for a token (release assets + create Raydium pool)
  * 
  * Body: { mint: string }
+ * 
+ * Auth: Either ENABLE_GRADUATION_API=true or X-Cron-Secret header matching CRON_SECRET
  */
 export async function POST(request: Request) {
   try {
-    // Only allow in development or with proper auth
-    if (process.env.NODE_ENV === 'production' && !process.env.ENABLE_GRADUATION_API) {
+    // Check authorization
+    const cronSecret = process.env.CRON_SECRET;
+    const requestCronSecret = request.headers.get('x-cron-secret');
+    const isFromCron = cronSecret && requestCronSecret === cronSecret;
+    const isApiEnabled = process.env.ENABLE_GRADUATION_API === 'true';
+    const isDev = process.env.NODE_ENV !== 'production';
+    
+    if (!isDev && !isApiEnabled && !isFromCron) {
       return NextResponse.json(
-        { success: false, error: 'Graduation API disabled in production' },
+        { success: false, error: 'Graduation API disabled. Enable via ENABLE_GRADUATION_API or cron.' },
         { status: 403 }
       );
     }
@@ -268,6 +276,19 @@ export async function POST(request: Request) {
       console.error('⚠️ Raydium pool creation failed:', poolError);
       // Don't fail the whole graduation - assets are released
       // Pool can be created manually or retried
+    }
+
+    // Step 4: Update database
+    try {
+      const { updateToken } = await import('@/lib/db');
+      await updateToken(mint, {
+        graduated: true,
+        raydiumPoolId: raydiumPool || undefined,
+      });
+      console.log('✅ Database updated');
+    } catch (dbError) {
+      console.error('⚠️ Database update failed:', dbError);
+      // Non-fatal - on-chain is source of truth
     }
 
     return NextResponse.json({
