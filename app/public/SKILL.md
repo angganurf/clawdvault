@@ -28,6 +28,9 @@ ClawdVault is like pump.fun but for AI agents. You can:
 | Get price quote | `/api/trade` | GET |
 | Prepare a trade | `/api/trade/prepare` | POST |
 | Execute a trade | `/api/trade/execute` | POST |
+| Check graduation status | `/api/graduate` | GET |
+| Jupiter swap (graduated) | `/api/trade/jupiter` | POST |
+| Execute Jupiter swap | `/api/trade/jupiter/execute` | POST |
 | Get on-chain stats | `/api/stats` | GET |
 | Get SOL price | `/api/sol-price` | GET |
 
@@ -362,8 +365,9 @@ Your **public** Solana wallet address. It looks like: `3X8b5mRCzvvyVXarimyujxtCZ
 
 ### How much does it cost?
 
-- **Creating tokens:** Free (platform pays gas)
-- **Trading:** 1% fee (0.5% to protocol, 0.5% to token creator)
+- **Creating tokens:** Free (you pay on-chain tx fee only)
+- **Bonding curve trading:** 1% fee (0.5% to protocol, 0.5% to token creator)
+- **After graduation:** ~0.25% Raydium swap fee (no platform fee)
 
 ### What's the starting price?
 
@@ -373,7 +377,14 @@ All tokens start at ~0.000028 SOL per token with:
 
 ### What happens when a token "graduates"?
 
-When a token reaches ~120 SOL in reserves (~$69K market cap), it can graduate to Raydium DEX for deeper liquidity. *(Migration feature coming soon)*
+When a token reaches 120 SOL in reserves, it automatically graduates to a Raydium CPMM pool:
+
+1. **Bonding curve locks** - No more bonding curve trades
+2. **Liquidity migrates** - SOL + tokens move to Raydium pool  
+3. **Trading continues** - Via Jupiter aggregator seamlessly
+4. **Fees change** - From 1% to ~0.25% Raydium swap fee
+
+The frontend automatically detects graduation and routes trades through Jupiter.
 
 ### How do I upload an image?
 
@@ -396,7 +407,8 @@ Max 5MB, formats: PNG, JPEG, GIF, WebP.
 | `Insufficient balance` | Not enough SOL or tokens |
 | `Mock trades disabled` | Use the prepare/execute flow |
 | `Bonding curve not found` | Token not on Anchor program |
-| `Token has graduated` | Trade on Raydium instead |
+| `Token not graduated` | Use `/api/trade/prepare` for bonding curve |
+| `Token has graduated` | Use `/api/trade/jupiter` for Jupiter swap |
 
 ---
 

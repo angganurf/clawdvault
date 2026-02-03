@@ -26,9 +26,11 @@ Base URL: `https://clawdvault.com`
 | `GET` | `/api/balance` | Get wallet's token balance |
 | `GET` | `/api/sol-price` | Current SOL/USD price |
 | `GET` | `/api/network` | Network status + program info |
-| **Graduation** |
+| **Graduation & Jupiter** |
 | `GET` | `/api/graduate` | Check token graduation status |
-| `POST` | `/api/graduate` | Trigger Raydium migration (admin) |
+| `GET` | `/api/trade/jupiter` | Check if token trades via Jupiter |
+| `POST` | `/api/trade/jupiter` | Get Jupiter swap quote + transaction |
+| `POST` | `/api/trade/jupiter/execute` | Execute signed Jupiter swap |
 | **Chat** |
 | `GET` | `/api/chat` | Get chat messages for token |
 | `POST` | `/api/chat` | Send chat message |
@@ -39,9 +41,6 @@ Base URL: `https://clawdvault.com`
 | `POST` | `/api/profile` | Update username/avatar |
 | `POST` | `/api/auth/session` | Create JWT session token |
 | `GET` | `/api/auth/session` | Verify session token |
-| **Sync** |
-| `GET` | `/api/sync/trades` | Sync on-chain trades to DB |
-| `POST` | `/api/sync/trades` | Force sync for specific token |
 | **Utility** |
 | `POST` | `/api/upload` | Upload image to storage |
 
@@ -307,9 +306,13 @@ The last candle's `close` price is the most recent trade price.
 
 ---
 
-## Graduation (Raydium Migration)
+## Graduation & Jupiter Trading
 
-When a token's bonding curve reaches 120 SOL in reserves, it becomes eligible for "graduation" - migration to a Raydium liquidity pool for traditional AMM trading.
+When a token's bonding curve reaches 120 SOL in reserves, it automatically "graduates" to a Raydium CPMM pool. After graduation, trades are routed through Jupiter aggregator instead of the bonding curve.
+
+**Fee structure:**
+- **Bonding curve:** 1% (0.5% protocol + 0.5% creator)
+- **After graduation:** ~0.25% Raydium swap fee (goes to LP)
 
 ### Check Graduation Status
 
@@ -322,10 +325,10 @@ When a token's bonding curve reaches 120 SOL in reserves, it becomes eligible fo
   "data": {
     "mint": "TokenMintAddress...",
     "graduated": true,
-    "migratedToRaydium": false,
+    "migratedToRaydium": true,
     "realSolReserves": "120000000000",
     "realTokenReserves": "200000000000000",
-    "canMigrate": true
+    "canMigrate": false
   }
 }
 ```
@@ -336,35 +339,97 @@ When a token's bonding curve reaches 120 SOL in reserves, it becomes eligible fo
 | `migratedToRaydium` | Whether Raydium pool was created |
 | `canMigrate` | `true` if graduated but not yet migrated |
 
-### Trigger Migration (Admin Only)
+### Check Jupiter Availability
 
-`POST /api/graduate`
+`GET /api/trade/jupiter?mint=...`
 
-> **Note:** This endpoint requires admin authentication and is disabled in production unless `ENABLE_GRADUATION_API=true` is set.
+Check if a token should be traded via Jupiter (graduated) or bonding curve.
 
-```json
-{
-  "mint": "TokenMintAddress..."
-}
-```
-
-**Response (success):**
+**Response:**
 ```json
 {
   "success": true,
-  "data": {
-    "mint": "TokenMintAddress...",
-    "releaseSignature": "5xyz...",
-    "migrationWallet": "MigrationWalletAddress...",
-    "solReleased": "120000000000",
-    "tokensReleased": "200000000000000",
-    "raydiumPool": "PoolIdAddress...",
-    "lpMint": "LpMintAddress...",
-    "poolTxSignature": "6abc...",
-    "message": "Token graduated to Raydium successfully!"
-  }
+  "mint": "TokenMintAddress...",
+  "graduated": true,
+  "tradeEndpoint": "/api/trade/jupiter"
 }
 ```
+
+### Jupiter Swap (Graduated Tokens)
+
+For graduated tokens, use Jupiter endpoints instead of the bonding curve.
+
+#### Get Jupiter Quote + Transaction
+
+`POST /api/trade/jupiter`
+
+```json
+{
+  "mint": "TokenMintAddress...",
+  "action": "buy",
+  "amount": "100000000",
+  "userPublicKey": "YourWalletAddress...",
+  "slippageBps": 50
+}
+```
+
+| Field | Description |
+|-------|-------------|
+| `mint` | Token mint address |
+| `action` | `"buy"` or `"sell"` |
+| `amount` | Lamports (buy) or token units (sell) |
+| `userPublicKey` | Your wallet address |
+| `slippageBps` | Slippage in basis points (50 = 0.5%) |
+
+**Response:**
+```json
+{
+  "success": true,
+  "graduated": true,
+  "quote": {
+    "inputMint": "So11111111111111111111111111111111111111112",
+    "outputMint": "TokenMintAddress...",
+    "inAmount": "100000000",
+    "outAmount": "35000000000",
+    "priceImpactPct": "0.5",
+    "slippageBps": 50
+  },
+  "transaction": "base64_versioned_transaction...",
+  "lastValidBlockHeight": 123456789
+}
+```
+
+#### Execute Jupiter Swap
+
+`POST /api/trade/jupiter/execute`
+
+```json
+{
+  "mint": "TokenMintAddress...",
+  "signedTransaction": "base64_signed_versioned_tx...",
+  "type": "buy",
+  "wallet": "YourWalletAddress...",
+  "solAmount": 0.1,
+  "tokenAmount": 35000000
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "signature": "5xyz...",
+  "trade": {
+    "mint": "TokenMintAddress...",
+    "type": "buy",
+    "solAmount": 0.1,
+    "tokenAmount": 35000000
+  },
+  "message": "Jupiter trade executed and recorded!"
+}
+```
+
+> **Note:** Jupiter uses VersionedTransactions, not legacy Transactions. Your wallet must support signing versioned transactions.
 
 ---
 
@@ -523,45 +588,6 @@ Sign: `{ "action": "create_session" }`
 
 ---
 
-## Sync (On-Chain Data Recovery)
-
-Sync endpoints fetch trades directly from on-chain transactions and add any missing ones to the database. Useful for data recovery or catching up after downtime.
-
-### Sync Recent Trades
-
-`GET /api/sync/trades?limit=100`
-
-| Param | Default | Description |
-|-------|---------|-------------|
-| `limit` | 100 | Max transactions to check (max 500) |
-| `mint` | - | Filter to specific token |
-
-**Response:**
-```json
-{
-  "success": true,
-  "checked": 100,
-  "synced": 3,
-  "skipped": 95,
-  "errors": 2,
-  "syncedSignatures": ["5xyz...", "6abc...", "7def..."]
-}
-```
-
-### Force Sync Token
-
-`POST /api/sync/trades`
-
-```json
-{
-  "mint": "TokenMintAddress..."
-}
-```
-
-Syncs up to 500 recent trades for a specific token.
-
----
-
 ## Upload
 
 ### Upload Image
@@ -608,6 +634,8 @@ Common HTTP codes:
 
 - **Program ID:** `GUyF2TVe32Cid4iGVt2F6wPYDhLSVmTUZBj2974outYM`
 - **Network:** Mainnet (production) / Devnet (dev)
-- **Trading Fee:** 1% (0.5% protocol + 0.5% creator)
+- **Bonding Curve Fee:** 1% (0.5% protocol + 0.5% creator)
+- **Post-Graduation Fee:** ~0.25% Raydium swap fee
 - **Initial Reserves:** 30 SOL / 1.073B tokens
-- **Graduation:** ~120 SOL reserves (~$69K market cap)
+- **Graduation Threshold:** 120 SOL raised → auto-migrates to Raydium
+- **Post-Graduation Trading:** Via Jupiter aggregator
