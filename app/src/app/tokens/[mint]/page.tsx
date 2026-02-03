@@ -659,10 +659,10 @@ export default function TokenPage({ params }: { params: Promise<{ mint: string }
               </div>
             </div>
 
-            {/* Holder Distribution, Mint, Chat - order-3 on mobile (after trade panel) */}
+            {/* Holder Distribution (mobile only) + Chat - order-3 on mobile */}
             <div className="lg:col-span-2 space-y-6 order-3">
-              {/* Holder Distribution */}
-              <div className="bg-gray-800/50 rounded-xl p-5">
+              {/* Holder Distribution - mobile only (desktop version is in sidebar) */}
+              <div className="bg-gray-800/50 rounded-xl p-5 lg:hidden">
                 <h3 className="text-white font-semibold mb-3 flex items-center gap-2">
                   <span>👥</span> Holder Distribution
                 </h3>
@@ -715,7 +715,6 @@ export default function TokenPage({ params }: { params: Promise<{ mint: string }
                       </div>
                     ))}
                     
-                    {/* Circulating Supply Footer */}
                     {circulatingSupply > 0 && (
                       <div className="pt-3 mt-3 border-t border-gray-700/50">
                         <div className="flex justify-between items-center text-sm">
@@ -732,8 +731,6 @@ export default function TokenPage({ params }: { params: Promise<{ mint: string }
                 )}
               </div>
 
-              {/* Token Chat */}
-              {/* Chat & Trades */}
               <ChatAndTrades 
                 mint={token.mint} 
                 tokenSymbol={token.symbol} 
@@ -965,6 +962,77 @@ export default function TokenPage({ params }: { params: Promise<{ mint: string }
                   <div className="text-gray-500 text-xs text-center mt-4">
                     1% fee on all trades
                   </div>
+              </div>
+
+              {/* Holder Distribution - in sidebar on desktop */}
+              <div className="bg-gray-800/50 rounded-xl p-5 hidden lg:block">
+                <h3 className="text-white font-semibold mb-3 flex items-center gap-2">
+                  <span>👥</span> Holder Distribution
+                </h3>
+                {holders.length === 0 ? (
+                  <div className="text-gray-500 text-center py-4 text-sm">Loading...</div>
+                ) : (
+                  <div className="space-y-3">
+                    {holders.slice(0, 5).map((holder, i) => (
+                      <div key={holder.address} className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-full bg-gray-700 flex items-center justify-center text-xs font-bold text-gray-400">
+                          {i + 1}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          {holder.label ? (
+                            <a
+                              href={`https://explorer.solana.com/address/${holder.address}${process.env.NEXT_PUBLIC_SOLANA_NETWORK === 'mainnet-beta' ? '' : '?cluster=' + (process.env.NEXT_PUBLIC_SOLANA_NETWORK || 'devnet')}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className={`font-medium text-sm hover:underline ${
+                                holder.label === 'Liquidity Pool' ? 'text-orange-400' : 'text-blue-400'
+                              }`}
+                            >{holder.label}</a>
+                          ) : (
+                            <a
+                              href={`https://explorer.solana.com/address/${holder.address}${process.env.NEXT_PUBLIC_SOLANA_NETWORK === 'mainnet-beta' ? '' : '?cluster=' + (process.env.NEXT_PUBLIC_SOLANA_NETWORK || 'devnet')}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-gray-300 hover:text-cyan-400 font-mono text-sm truncate hover:underline"
+                            >
+                              {holder.address.slice(0, 6)}...{holder.address.slice(-4)}
+                            </a>
+                          )}
+                          <div className="text-gray-500 text-xs">{formatNumber(holder.balance)} tokens</div>
+                        </div>
+                        <div className="text-right">
+                          <div 
+                            className="h-2 rounded-full bg-gray-700 w-16 overflow-hidden"
+                            title={`${holder.percentage.toFixed(2)}%`}
+                          >
+                            <div 
+                              className={`h-full rounded-full ${
+                                holder.label === 'Liquidity Pool' ? 'bg-orange-500' : 
+                                holder.label === 'Creator (dev)' ? 'bg-blue-500' : 'bg-purple-500'
+                              }`}
+                              style={{ width: `${Math.min(holder.percentage, 100)}%` }}
+                            />
+                          </div>
+                          <div className="text-gray-400 text-xs mt-1 font-mono">{holder.percentage < 0.1 ? holder.percentage.toFixed(3) : holder.percentage.toFixed(1)}%</div>
+                        </div>
+                      </div>
+                    ))}
+                    
+                    {/* Circulating Supply Footer */}
+                    {circulatingSupply > 0 && (
+                      <div className="pt-3 mt-3 border-t border-gray-700/50">
+                        <div className="flex justify-between items-center text-sm">
+                          <span className="text-gray-500">Circulating</span>
+                          <span className="text-white font-mono">{formatNumber(circulatingSupply)}</span>
+                        </div>
+                        <div className="flex justify-between items-center text-sm mt-1">
+                          <span className="text-gray-500">Total Supply</span>
+                          <span className="text-gray-400 font-mono">1,000,000,000</span>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
 
           </div>
