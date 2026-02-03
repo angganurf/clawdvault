@@ -39,6 +39,9 @@ Base URL: `https://clawdvault.com`
 | `POST` | `/api/profile` | Update username/avatar |
 | `POST` | `/api/auth/session` | Create JWT session token |
 | `GET` | `/api/auth/session` | Verify session token |
+| **Sync** |
+| `GET` | `/api/sync/trades` | Sync on-chain trades to DB |
+| `POST` | `/api/sync/trades` | Force sync for specific token |
 | **Utility** |
 | `POST` | `/api/upload` | Upload image to storage |
 
@@ -515,6 +518,45 @@ Sign: `{ "action": "create_session" }`
 
 **Headers:**
 - `Authorization: Bearer <token>`
+
+---
+
+## Sync (On-Chain Data Recovery)
+
+Sync endpoints fetch trades directly from on-chain transactions and add any missing ones to the database. Useful for data recovery or catching up after downtime.
+
+### Sync Recent Trades
+
+`GET /api/sync/trades?limit=100`
+
+| Param | Default | Description |
+|-------|---------|-------------|
+| `limit` | 100 | Max transactions to check (max 500) |
+| `mint` | - | Filter to specific token |
+
+**Response:**
+```json
+{
+  "success": true,
+  "checked": 100,
+  "synced": 3,
+  "skipped": 95,
+  "errors": 2,
+  "syncedSignatures": ["5xyz...", "6abc...", "7def..."]
+}
+```
+
+### Force Sync Token
+
+`POST /api/sync/trades`
+
+```json
+{
+  "mint": "TokenMintAddress..."
+}
+```
+
+Syncs up to 500 recent trades for a specific token.
 
 ---
 
