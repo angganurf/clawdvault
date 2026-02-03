@@ -756,6 +756,26 @@ export default function TokenPage({ params }: { params: Promise<{ mint: string }
                 </div>
               )}
               
+              {/* Token Price */}
+              <div className="bg-gray-700/50 rounded-lg p-3 mb-4">
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-400">Price</span>
+                  <span className="text-white font-mono">
+                    {onChainStats?.price ? formatPrice(onChainStats.price) : token.price_sol ? formatPrice(token.price_sol) : '--'} SOL
+                  </span>
+                </div>
+                {solPrice && (
+                  <div className="flex justify-between text-sm mt-1">
+                    <span className="text-gray-400">USD</span>
+                    <span className="text-green-400 font-mono">
+                      ${onChainStats?.price && solPrice 
+                        ? (onChainStats.price * solPrice).toFixed(onChainStats.price * solPrice < 0.01 ? 8 : 4)
+                        : '--'}
+                    </span>
+                  </div>
+                )}
+              </div>
+
               {/* User Balance - show if connected */}
                   {connected && (
                     <div className="bg-gray-700/50 rounded-lg p-3 mb-4">
