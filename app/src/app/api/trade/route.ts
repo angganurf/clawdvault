@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { executeTrade, getToken } from '@/lib/db';
+import { updateCandles } from '@/lib/candles';
 
 export const dynamic = 'force-dynamic';
 
@@ -97,6 +98,15 @@ export async function POST(request: Request) {
         { status: 500 }
       );
     }
+    
+    // Update price candles for charts
+    await updateCandles(
+      body.mint, 
+      result.token.price_sol, 
+      result.trade.sol_amount
+    ).catch(err => {
+      console.warn('Failed to update candles:', err);
+    });
     
     return NextResponse.json({
       success: true,
