@@ -433,7 +433,7 @@ export default function ChatAndTrades({ mint, tokenSymbol, trades, onTradesUpdat
         <>
           <div 
             ref={chatContainerRef}
-            className="flex-1 min-h-0 overflow-y-auto"
+            className="flex-1 min-h-0 overflow-y-auto dark-scrollbar"
           >
             {loading ? (
               <div className="flex items-center justify-center py-20 text-gray-500">
@@ -577,7 +577,7 @@ export default function ChatAndTrades({ mint, tokenSymbol, trades, onTradesUpdat
       {activeTab === 'trades' && (
         <div 
           ref={tradesContainerRef}
-          className="flex-1 min-h-0 overflow-y-auto"
+          className="flex-1 min-h-0 overflow-y-auto dark-scrollbar"
         >
           {trades.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-20 text-gray-500">
