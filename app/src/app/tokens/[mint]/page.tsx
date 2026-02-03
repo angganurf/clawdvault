@@ -588,14 +588,13 @@ export default function TokenPage({ params }: { params: Promise<{ mint: string }
           <div className="grid lg:grid-cols-3 gap-4">
             {/* Stats & Bonding - order-1 on mobile (pump.fun style: stats before trade) */}
             <div className="lg:col-span-2 space-y-4 order-1">
-              {/* Price Chart with integrated stats */}
+              {/* Price Chart with market cap + ATH display */}
               <PriceChart 
                 mint={token.mint} 
-                height={450}
+                height={400}
                 currentPrice={onChainStats?.price ?? token.price_sol}
                 marketCapSol={onChainStats?.marketCap ?? token.market_cap_sol}
                 marketCapUsd={solPrice ? (onChainStats?.marketCap ?? token.market_cap_sol) * solPrice : null}
-                bondingProgress={progressPercent}
                 volume24h={token.volume_24h || 0}
                 solPrice={solPrice}
                 holders={holders.length > 0 ? holders.length : (token.holders || 0)}
@@ -902,6 +901,44 @@ export default function TokenPage({ params }: { params: Promise<{ mint: string }
                   <div className="text-gray-500 text-xs text-center mt-4">
                     1% fee on all trades
                   </div>
+              </div>
+
+              {/* Bonding Curve Progress - in sidebar */}
+              <div className="bg-gray-800/50 rounded-xl p-5">
+                <h3 className="text-white font-semibold mb-3 flex items-center gap-2">
+                  <span>📈</span> Bonding Curve
+                </h3>
+                <div className="space-y-3">
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-400 text-sm">Progress</span>
+                    <span className="text-orange-400 font-mono font-bold">{progressPercent.toFixed(1)}%</span>
+                  </div>
+                  <div className="h-3 bg-gray-700 rounded-full overflow-hidden">
+                    <div 
+                      className="h-full bg-gradient-to-r from-orange-500 via-orange-400 to-green-400 transition-all duration-500"
+                      style={{ width: `${Math.min(progressPercent, 100)}%` }}
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-2 text-sm">
+                    <div className="bg-gray-700/50 rounded-lg p-2">
+                      <div className="text-gray-500 text-xs">Raised</div>
+                      <div className="text-white font-mono">{fundsRaised.toFixed(2)} SOL</div>
+                    </div>
+                    <div className="bg-gray-700/50 rounded-lg p-2">
+                      <div className="text-gray-500 text-xs">Target</div>
+                      <div className="text-gray-400 font-mono">120 SOL</div>
+                    </div>
+                  </div>
+                  {token.graduated ? (
+                    <div className="text-center py-2 bg-green-900/30 rounded-lg border border-green-500/30">
+                      <div className="text-green-400 font-medium text-sm">🎓 Graduated!</div>
+                    </div>
+                  ) : (
+                    <div className="text-gray-500 text-xs text-center">
+                      🚀 Raydium graduation at 120 SOL
+                    </div>
+                  )}
+                </div>
               </div>
 
               {/* Holder Distribution - in sidebar on desktop */}

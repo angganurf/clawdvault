@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useMemo } from 'react';
 import { createChart, IChartApi, ISeriesApi, LineData, CandlestickData, ColorType } from 'lightweight-charts';
 
 interface Candle {
@@ -20,7 +20,6 @@ interface PriceChartProps {
   currentPrice?: number;
   marketCapSol?: number;
   marketCapUsd?: number | null;
-  bondingProgress?: number;
   volume24h?: number;
   solPrice?: number | null;
   holders?: number;
@@ -33,12 +32,11 @@ const TOTAL_SUPPLY = 1_000_000_000;
 
 export default function PriceChart({ 
   mint, 
-  height = 450, 
+  height = 400, 
   totalSupply = TOTAL_SUPPLY,
   currentPrice = 0,
   marketCapSol = 0,
   marketCapUsd = null,
-  bondingProgress = 0,
   volume24h = 0,
   solPrice = null,
   holders = 0,
@@ -52,10 +50,46 @@ export default function PriceChart({
   const [chartType, setChartType] = useState<ChartType>('line');
   const [timeInterval, setTimeInterval] = useState<Interval>('5m');
 
-  // Calculate price change from candles
-  const priceChange = candles.length >= 2 
-    ? ((candles[candles.length - 1].close - candles[0].close) / candles[0].close) * 100
-    : 0;
+  // Calculate stats from candles
+  const { priceChange, athPrice, athTime, ohlcv } = useMemo(() => {
+    if (candles.length === 0) {
+      return { priceChange: 0, athPrice: 0, athTime: null, ohlcv: null };
+    }
+    
+    const firstClose = candles[0].close;
+    const lastClose = candles[candles.length - 1].close;
+    const change = ((lastClose - firstClose) / firstClose) * 100;
+    
+    // Find ATH from candles
+    let maxPrice = 0;
+    let maxTime: number | null = null;
+    candles.forEach(c => {
+      if (c.high > maxPrice) {
+        maxPrice = c.high;
+        maxTime = c.time;
+      }
+    });
+    
+    // OHLCV for the visible range (last candle)
+    const last = candles[candles.length - 1];
+    const totalVolume = candles.reduce((sum, c) => sum + c.volume, 0);
+    
+    return {
+      priceChange: change,
+      athPrice: maxPrice,
+      athTime: maxTime,
+      ohlcv: {
+        open: last.open,
+        high: last.high,
+        low: last.low,
+        close: last.close,
+        volume: totalVolume,
+      }
+    };
+  }, [candles]);
+
+  // Calculate ATH progress (how close current price is to ATH)
+  const athProgress = athPrice > 0 ? (currentPrice / athPrice) * 100 : 100;
 
   // Fetch candles
   useEffect(() => {
@@ -74,8 +108,8 @@ export default function PriceChart({
     };
 
     fetchCandles();
-    const refreshInterval = setInterval(fetchCandles, 30000);
-    return () => clearInterval(refreshInterval);
+    const refreshInterval = window.setInterval(fetchCandles, 30000);
+    return () => window.clearInterval(refreshInterval);
   }, [mint, timeInterval]);
 
   // Create/update chart
@@ -93,7 +127,7 @@ export default function PriceChart({
           horzLines: { color: 'rgba(55, 65, 81, 0.3)' },
         },
         width: chartContainerRef.current.clientWidth,
-        height: height - 220, // Account for expanded header
+        height: height - 160, // Account for header
         crosshair: {
           mode: 1,
           vertLine: { color: '#f97316', width: 1, style: 2 },
@@ -173,98 +207,87 @@ export default function PriceChart({
   }, []);
 
   // Format helpers
-  const formatPrice = (price: number) => {
-    if (price < 0.0000000001) return '<0.0000000001';
-    if (price < 0.000001) return price.toFixed(12);
-    if (price < 0.001) return price.toFixed(9);
-    return price.toFixed(6);
-  };
-
-  const formatUsd = (n: number) => {
+  const formatMcap = (n: number) => {
     if (n >= 1000000) return '$' + (n / 1000000).toFixed(2) + 'M';
-    if (n >= 1000) return '$' + (n / 1000).toFixed(2) + 'K';
+    if (n >= 1000) return '$' + (n / 1000).toFixed(1) + 'K';
     if (n >= 1) return '$' + n.toFixed(2);
     return '$' + n.toFixed(4);
   };
 
-  const formatSol = (n: number) => {
+  const formatMcapSol = (n: number) => {
+    if (n >= 1000) return (n / 1000).toFixed(2) + 'K SOL';
+    return n.toFixed(2) + ' SOL';
+  };
+
+  const formatVolume = (n: number) => {
+    if (n >= 1000000) return (n / 1000000).toFixed(2) + 'M';
     if (n >= 1000) return (n / 1000).toFixed(2) + 'K';
     return n.toFixed(2);
   };
 
   return (
     <div className="bg-gray-900/80 rounded-xl overflow-hidden border border-gray-700/50">
-      {/* Header Stats - pump.fun style */}
+      {/* Header - pump.fun style market cap display */}
       <div className="p-4 border-b border-gray-700/30">
-        {/* Main Stats Row */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-4">
-          {/* Price */}
-          <div className="bg-gray-800/40 rounded-lg p-3">
-            <div className="text-gray-500 text-xs mb-1">Price</div>
-            <div className="text-white text-lg font-mono leading-tight">
-              {formatPrice(currentPrice)}
+        {/* Market Cap Header with ATH */}
+        <div className="flex items-start justify-between mb-3">
+          <div>
+            <div className="text-gray-500 text-xs mb-1">Market Cap</div>
+            <div className="text-3xl font-bold text-white">
+              {marketCapUsd ? formatMcap(marketCapUsd) : formatMcapSol(marketCapSol)}
             </div>
             <div className="flex items-center gap-2 mt-1">
-              {solPrice && (
-                <span className="text-gray-500 text-xs">
-                  ≈ {formatUsd(currentPrice * solPrice)}
-                </span>
-              )}
-              {priceChange !== 0 && (
-                <span className={`text-xs font-medium ${priceChange >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                  {priceChange >= 0 ? '▲' : '▼'} {Math.abs(priceChange).toFixed(1)}%
-                </span>
-              )}
+              <span className={`text-sm font-medium ${priceChange >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                {priceChange >= 0 ? '+' : ''}{marketCapUsd 
+                  ? formatMcap(Math.abs(priceChange / 100 * marketCapUsd))
+                  : formatMcapSol(Math.abs(priceChange / 100 * marketCapSol))
+                } ({priceChange >= 0 ? '+' : ''}{priceChange.toFixed(2)}%)
+              </span>
+              <span className="text-gray-500 text-sm">24hr</span>
             </div>
           </div>
-
-          {/* Market Cap */}
-          <div className="bg-gray-800/40 rounded-lg p-3">
-            <div className="text-gray-500 text-xs mb-1">Market Cap</div>
-            <div className="text-orange-400 text-lg font-mono leading-tight">
-              {marketCapUsd ? formatUsd(marketCapUsd) : formatSol(marketCapSol)}
+          
+          {/* ATH Tracker */}
+          <div className="text-right">
+            <div className="flex items-center gap-2 mb-1">
+              {/* ATH Progress Bar */}
+              <div className="w-24 h-2 bg-gray-700 rounded-full overflow-hidden">
+                <div 
+                  className={`h-full rounded-full transition-all ${athProgress >= 95 ? 'bg-green-500' : 'bg-orange-500'}`}
+                  style={{ width: `${Math.min(athProgress, 100)}%` }}
+                />
+              </div>
+              <div className="text-gray-500 text-xs">ATH</div>
             </div>
-            {marketCapUsd && (
-              <div className="text-gray-500 text-xs mt-1">{formatSol(marketCapSol)} SOL</div>
-            )}
-          </div>
-
-          {/* Volume */}
-          <div className="bg-gray-800/40 rounded-lg p-3">
-            <div className="text-gray-500 text-xs mb-1">24h Volume</div>
-            <div className="text-blue-400 text-lg font-mono leading-tight">
-              {solPrice ? formatUsd(volume24h * solPrice) : formatSol(volume24h)}
-            </div>
-            {solPrice && (
-              <div className="text-gray-500 text-xs mt-1">{formatSol(volume24h)} SOL</div>
-            )}
-          </div>
-
-          {/* Holders */}
-          <div className="bg-gray-800/40 rounded-lg p-3">
-            <div className="text-gray-500 text-xs mb-1">Holders</div>
-            <div className="text-purple-400 text-lg font-mono leading-tight">
-              {holders || '--'}
+            <div className="text-green-400 font-bold">
+              {marketCapUsd && athPrice > 0
+                ? formatMcap(athPrice * totalSupply * (solPrice || 0))
+                : athPrice > 0 ? formatMcapSol(athPrice * totalSupply) : '--'
+              }
             </div>
           </div>
         </div>
 
-        {/* Bonding Curve Progress */}
-        <div className="bg-gray-800/40 rounded-lg p-3 mb-4">
-          <div className="flex justify-between items-center mb-2">
-            <span className="text-gray-400 text-sm">Bonding Curve Progress</span>
-            <span className="text-orange-400 font-mono font-medium">{bondingProgress.toFixed(1)}%</span>
+        {/* OHLCV Bar */}
+        {ohlcv && (
+          <div className="flex items-center gap-4 text-xs mb-4 flex-wrap">
+            <span className="text-gray-500">
+              O<span className="text-green-400 ml-1">{formatMcap((ohlcv.open * totalSupply) * (solPrice || 1))}</span>
+            </span>
+            <span className="text-gray-500">
+              H<span className="text-green-400 ml-1">{formatMcap((ohlcv.high * totalSupply) * (solPrice || 1))}</span>
+            </span>
+            <span className="text-gray-500">
+              L<span className="text-green-400 ml-1">{formatMcap((ohlcv.low * totalSupply) * (solPrice || 1))}</span>
+            </span>
+            <span className="text-gray-500">
+              C<span className="text-green-400 ml-1">{formatMcap((ohlcv.close * totalSupply) * (solPrice || 1))}</span>
+            </span>
+            <span className="text-gray-500">
+              Vol<span className="text-cyan-400 ml-1">{formatVolume(ohlcv.volume)}</span>
+            </span>
           </div>
-          <div className="h-2.5 bg-gray-700 rounded-full overflow-hidden">
-            <div 
-              className="h-full bg-gradient-to-r from-orange-500 via-orange-400 to-green-400 transition-all duration-500"
-              style={{ width: `${Math.min(bondingProgress, 100)}%` }}
-            />
-          </div>
-          <div className="text-gray-500 text-xs mt-2 text-center">
-            🚀 Raydium graduation at 100%
-          </div>
-        </div>
+        )}
 
         {/* Controls */}
         <div className="flex justify-between items-center">
@@ -310,11 +333,11 @@ export default function PriceChart({
       
       {/* Chart */}
       {loading && candles.length === 0 ? (
-        <div className="flex items-center justify-center text-gray-500" style={{ height: height - 220 }}>
+        <div className="flex items-center justify-center text-gray-500" style={{ height: height - 160 }}>
           Loading chart...
         </div>
       ) : candles.length === 0 ? (
-        <div className="flex flex-col items-center justify-center text-gray-500" style={{ height: height - 220 }}>
+        <div className="flex flex-col items-center justify-center text-gray-500" style={{ height: height - 160 }}>
           <span className="text-2xl mb-2">📊</span>
           <span>No price history yet</span>
           <span className="text-xs text-gray-600 mt-1">Chart appears after first trade</span>
