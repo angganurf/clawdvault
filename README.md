@@ -125,16 +125,27 @@ NEXT_PUBLIC_RPC_URL=https://api.mainnet-beta.solana.com
 ### Contract Development
 
 ```bash
-# Build contract
+# Build contract (verifiable build for mainnet)
 cd clawdvault
-anchor build
+anchor build --verifiable
 
-# Deploy (requires Solana CLI + funded wallet)
-./scripts/deploy.sh mainnet
+# Deploy the verifiable build (NOT target/deploy/)
+solana program deploy target/verifiable/clawdvault.so \
+  --program-id GUyF2TVe32Cid4iGVt2F6wPYDhLSVmTUZBj2974outYM \
+  --url mainnet-beta
 
-# Initialize protocol
+# Initialize protocol (first deploy only)
 npx ts-node scripts/initialize.ts mainnet
+
+# Update verification status after deploy
+solana-verify verify-from-repo \
+  --program-id GUyF2TVe32Cid4iGVt2F6wPYDhLSVmTUZBj2974outYM \
+  --commit-hash $(git rev-parse HEAD) \
+  -u https://api.mainnet-beta.solana.com \
+  https://github.com/shadowclawai/clawdvault
 ```
+
+> **Note:** Always deploy `target/verifiable/clawdvault.so` (not `target/deploy/`) and run verification afterwards. See [docs/VERIFICATION.md](docs/VERIFICATION.md) for detailed verification guide.
 
 ## Directory Structure
 
