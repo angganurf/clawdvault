@@ -101,7 +101,7 @@ paths:
     post:
       tags: [Tokens]
       summary: Execute token creation
-      description: Step 2: Submit the signed transaction and create database record.
+      description: "Step 2: Submit the signed transaction and create database record."
       requestBody:
         required: true
         content:
