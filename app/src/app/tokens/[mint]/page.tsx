@@ -657,10 +657,7 @@ export default function TokenPage({ params }: { params: Promise<{ mint: string }
                   🔜 Raydium graduation coming in future contract update
                 </div>
               </div>
-            </div>
 
-            {/* Holder Distribution (mobile only) + Chat - order-3 on mobile */}
-            <div className="lg:col-span-2 space-y-4 order-3">
               {/* Holder Distribution - mobile only (desktop version is in sidebar) */}
               <div className="bg-gray-800/50 rounded-xl p-5 lg:hidden">
                 <h3 className="text-white font-semibold mb-3 flex items-center gap-2">
