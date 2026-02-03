@@ -71,6 +71,7 @@ pub mod clawdvault {
         let config = &mut ctx.accounts.config;
         config.authority = ctx.accounts.authority.key();
         config.fee_recipient = ctx.accounts.fee_recipient.key();
+        config.migration_operator = ctx.accounts.authority.key();  // Default to authority
         config.total_tokens_created = 0;
         config.total_volume_sol = 0;
         config.bump = ctx.bumps.config;
@@ -78,6 +79,21 @@ pub mod clawdvault {
         msg!("ClawdVault initialized!");
         msg!("Authority: {}", config.authority);
         msg!("Fee recipient: {}", config.fee_recipient);
+        msg!("Migration operator: {}", config.migration_operator);
+        
+        Ok(())
+    }
+
+    /// Set migration operator (authority only)
+    pub fn set_migration_operator(ctx: Context<SetMigrationOperator>, new_operator: Pubkey) -> Result<()> {
+        let config = &mut ctx.accounts.config;
+        let old_operator = config.migration_operator;
+        
+        config.migration_operator = new_operator;
+        
+        msg!("Migration operator updated!");
+        msg!("Old operator: {}", old_operator);
+        msg!("New operator: {}", new_operator);
         
         Ok(())
     }
@@ -653,13 +669,14 @@ pub mod clawdvault {
 pub struct Config {
     pub authority: Pubkey,
     pub fee_recipient: Pubkey,
+    pub migration_operator: Pubkey,  // Can trigger migrations (hot wallet)
     pub total_tokens_created: u64,
     pub total_volume_sol: u64,
     pub bump: u8,
 }
 
 impl Config {
-    pub const LEN: usize = 8 + 32 + 32 + 8 + 8 + 1;
+    pub const LEN: usize = 8 + 32 + 32 + 32 + 8 + 8 + 1;  // Added 32 for migration_operator
 }
 
 /// Bonding curve state for each token
@@ -722,6 +739,23 @@ pub struct Initialize<'info> {
 #[derive(Accounts)]
 pub struct TransferAuthority<'info> {
     /// Current authority (must sign)
+    #[account(
+        constraint = authority.key() == config.authority @ ClawdVaultError::Unauthorized,
+    )]
+    pub authority: Signer<'info>,
+    
+    /// Protocol config to update
+    #[account(
+        mut,
+        seeds = [b"config"],
+        bump = config.bump,
+    )]
+    pub config: Account<'info, Config>,
+}
+
+#[derive(Accounts)]
+pub struct SetMigrationOperator<'info> {
+    /// Authority (only authority can set operator)
     #[account(
         constraint = authority.key() == config.authority @ ClawdVaultError::Unauthorized,
     )]
@@ -946,12 +980,15 @@ pub struct Sell<'info> {
 
 #[derive(Accounts)]
 pub struct ReleaseForMigration<'info> {
-    /// Protocol authority (only authority can trigger migration)
+    /// Operator or authority (either can trigger migration)
     #[account(
         mut,
-        constraint = authority.key() == config.authority @ ClawdVaultError::Unauthorized,
+        constraint = (
+            operator.key() == config.migration_operator || 
+            operator.key() == config.authority
+        ) @ ClawdVaultError::Unauthorized,
     )]
-    pub authority: Signer<'info>,
+    pub operator: Signer<'info>,
     
     /// Protocol config
     #[account(

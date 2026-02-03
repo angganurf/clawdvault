@@ -23,9 +23,10 @@ function getConnection(): Connection {
   return new Connection(rpcUrl, 'confirmed');
 }
 
-// Migration wallet keypair (loaded from env)
-function getMigrationWallet(): Keypair | null {
-  const privateKey = process.env.MIGRATION_WALLET_PRIVATE_KEY;
+// Operator wallet keypair (for calling release_for_migration)
+// This is the "hot wallet" that can trigger migrations
+function getOperatorWallet(): Keypair | null {
+  const privateKey = process.env.OPERATOR_WALLET_PRIVATE_KEY;
   if (!privateKey) return null;
   try {
     return Keypair.fromSecretKey(bs58.decode(privateKey));
@@ -34,9 +35,11 @@ function getMigrationWallet(): Keypair | null {
   }
 }
 
-// Protocol authority keypair (for calling release_for_migration)
-function getAuthorityWallet(): Keypair | null {
-  const privateKey = process.env.AUTHORITY_WALLET_PRIVATE_KEY;
+// Migration wallet (receives assets, creates Raydium pools)
+// Can be same as operator or different
+function getMigrationWallet(): Keypair | null {
+  // First try dedicated migration wallet, fall back to operator
+  const privateKey = process.env.MIGRATION_WALLET_PRIVATE_KEY || process.env.OPERATOR_WALLET_PRIVATE_KEY;
   if (!privateKey) return null;
   try {
     return Keypair.fromSecretKey(bs58.decode(privateKey));
@@ -151,11 +154,11 @@ export async function POST(request: Request) {
 
     // Check wallets are configured
     const migrationWallet = getMigrationWallet();
-    const authorityWallet = getAuthorityWallet();
+    const operatorWallet = getOperatorWallet();
     
-    if (!migrationWallet || !authorityWallet) {
+    if (!migrationWallet || !operatorWallet) {
       return NextResponse.json(
-        { success: false, error: 'Migration wallets not configured' },
+        { success: false, error: 'Operator/migration wallets not configured (set OPERATOR_WALLET_PRIVATE_KEY)' },
         { status: 500 }
       );
     }
@@ -219,7 +222,7 @@ export async function POST(request: Request) {
       // Create ATA if it doesn't exist
       console.log('Creating migration token account...');
       const createAtaIx = createAssociatedTokenAccountInstruction(
-        authorityWallet.publicKey,
+        operatorWallet.publicKey,
         migrationTokenAccount,
         migrationWallet.publicKey,
         mintPubkey
@@ -228,15 +231,15 @@ export async function POST(request: Request) {
       const tx = new (await import('@solana/web3.js')).Transaction()
         .add(createAtaIx);
       tx.recentBlockhash = blockhash;
-      tx.feePayer = authorityWallet.publicKey;
-      await sendAndConfirmTransaction(connection, tx, [authorityWallet]);
+      tx.feePayer = operatorWallet.publicKey;
+      await sendAndConfirmTransaction(connection, tx, [operatorWallet]);
     }
 
     // Step 2: Release assets from curve to migration wallet
     console.log('Releasing assets from curve...');
     const client = new ClawdVaultClient(connection);
     const releaseTx = await client.buildReleaseForMigrationTx(
-      authorityWallet.publicKey,
+      operatorWallet.publicKey,
       mintPubkey,
       migrationWallet.publicKey
     );
@@ -244,7 +247,7 @@ export async function POST(request: Request) {
     const releaseSignature = await sendAndConfirmTransaction(
       connection, 
       releaseTx, 
-      [authorityWallet]
+      [operatorWallet]
     );
     console.log(`✅ Assets released: ${releaseSignature}`);
 

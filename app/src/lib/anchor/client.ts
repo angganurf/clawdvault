@@ -482,8 +482,12 @@ export class ClawdVaultClient {
    * Build a release_for_migration transaction
    * Only callable by protocol authority after graduation threshold is hit
    */
+  /**
+   * Build a release_for_migration transaction
+   * Can be signed by either authority or migration_operator
+   */
   async buildReleaseForMigrationTx(
-    authority: PublicKey,
+    operator: PublicKey,  // Either authority or migration_operator
     mint: PublicKey,
     migrationWallet: PublicKey,
   ): Promise<Transaction> {
@@ -504,7 +508,7 @@ export class ClawdVaultClient {
     const instruction = new TransactionInstruction({
       programId: PROGRAM_ID,
       keys: [
-        { pubkey: authority, isSigner: true, isWritable: true },
+        { pubkey: operator, isSigner: true, isWritable: true },
         { pubkey: configPDA, isSigner: false, isWritable: false },
         { pubkey: curvePDA, isSigner: false, isWritable: true },
         { pubkey: solVaultPDA, isSigner: false, isWritable: true },
@@ -519,7 +523,7 @@ export class ClawdVaultClient {
     });
     
     const tx = new Transaction().add(instruction);
-    tx.feePayer = authority;
+    tx.feePayer = operator;
     tx.recentBlockhash = (await this.connection.getLatestBlockhash()).blockhash;
     
     return tx;
@@ -555,6 +559,41 @@ export class ClawdVaultClient {
     
     const tx = new Transaction().add(instruction);
     tx.feePayer = currentAuthority;
+    tx.recentBlockhash = (await this.connection.getLatestBlockhash()).blockhash;
+    
+    return tx;
+  }
+
+  /**
+   * Build a set_migration_operator transaction
+   * Sets the wallet that can trigger migrations (hot wallet for automation)
+   */
+  async buildSetMigrationOperatorTx(
+    authority: PublicKey,
+    newOperator: PublicKey,
+  ): Promise<Transaction> {
+    const [configPDA] = findConfigPDA();
+    
+    // set_migration_operator discriminator (first 8 bytes of sha256("global:set_migration_operator"))
+    const discriminator = Buffer.from([0x8b, 0x3a, 0xc0, 0x45, 0x6f, 0x29, 0x1d, 0x58]);
+    
+    // Encode new_operator pubkey
+    const data = Buffer.concat([
+      discriminator,
+      newOperator.toBuffer(),
+    ]);
+    
+    const instruction = new TransactionInstruction({
+      programId: PROGRAM_ID,
+      keys: [
+        { pubkey: authority, isSigner: true, isWritable: false },
+        { pubkey: configPDA, isSigner: false, isWritable: true },
+      ],
+      data,
+    });
+    
+    const tx = new Transaction().add(instruction);
+    tx.feePayer = authority;
     tx.recentBlockhash = (await this.connection.getLatestBlockhash()).blockhash;
     
     return tx;
