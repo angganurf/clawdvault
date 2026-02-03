@@ -24,9 +24,10 @@ export async function GET(request: Request) {
   
   try {
     // Call the sync endpoint internally
-    const baseUrl = process.env.VERCEL_URL 
-      ? `https://${process.env.VERCEL_URL}` 
-      : 'http://localhost:3000';
+    // Use canonical URL in prod, fallback to VERCEL_URL, then localhost
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL 
+      || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : null)
+      || 'http://localhost:3000';
     
     const response = await fetch(`${baseUrl}/api/sync/trades?limit=200`, {
       method: 'GET',
@@ -34,6 +35,17 @@ export async function GET(request: Request) {
         'Content-Type': 'application/json',
       },
     });
+    
+    // Check for non-JSON response (error pages, etc.)
+    const contentType = response.headers.get('content-type') || '';
+    if (!contentType.includes('application/json')) {
+      const text = await response.text();
+      console.error(`❌ [CRON] Non-JSON response (${response.status}):`, text.slice(0, 500));
+      return NextResponse.json({
+        success: false,
+        error: `Sync endpoint returned ${response.status}: ${text.slice(0, 100)}`,
+      }, { status: 500 });
+    }
     
     const data = await response.json();
     
