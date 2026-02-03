@@ -260,13 +260,32 @@ export default function PriceChart({
 
     chartRef.current.timeScale().fitContent();
 
+    // Use ResizeObserver to handle container size changes (more reliable than window resize)
     const handleResize = () => {
       if (chartRef.current && chartContainerRef.current) {
-        chartRef.current.applyOptions({ width: chartContainerRef.current.clientWidth });
+        const width = chartContainerRef.current.clientWidth;
+        if (width > 0) {
+          chartRef.current.applyOptions({ width });
+        }
       }
     };
+
+    // Initial resize
+    handleResize();
+
+    // Watch for container size changes
+    const resizeObserver = new ResizeObserver(handleResize);
+    if (chartContainerRef.current) {
+      resizeObserver.observe(chartContainerRef.current);
+    }
+
+    // Also listen to window resize as fallback
     window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
+    
+    return () => {
+      resizeObserver.disconnect();
+      window.removeEventListener('resize', handleResize);
+    };
   }, [candles, chartType, height, totalSupply, priceChange24h, solPrice]);
 
   useEffect(() => {
@@ -298,7 +317,7 @@ export default function PriceChart({
   };
 
   return (
-    <div className="bg-gray-900/80 rounded-xl overflow-hidden border border-gray-700/50 w-full max-w-full">
+    <div className="bg-gray-900/80 rounded-xl overflow-hidden border border-gray-700/50 w-full min-w-0">
       {/* Header - pump.fun style market cap + ATH display */}
       <div className="p-4 border-b border-gray-700/30">
         {/* Market Cap Header with ATH progress bar */}
