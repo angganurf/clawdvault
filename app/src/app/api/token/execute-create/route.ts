@@ -153,8 +153,7 @@ export async function POST(request: Request) {
         console.log(`📊 Initial buy trade recorded: ${initialBuyTrade.id}`);
         
         // Update price candles for charts
-        const pricePerToken = body.expectedTokens > 0 ? body.initialBuyAmount / body.expectedTokens : 0;
-        await updateCandles(body.mint, pricePerToken, body.initialBuyAmount).catch(err => {
+        await updateCandles(body.mint, pricePerToken, body.initialBuy.solAmount).catch(err => {
           console.warn('Failed to update candles:', err);
         });
       } catch (tradeErr) {
