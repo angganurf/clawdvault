@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { Connection, clusterApiUrl } from '@solana/web3.js';
 import { db } from '@/lib/prisma';
+import { updateCandles } from '@/lib/candles';
 
 export const dynamic = 'force-dynamic';
 
@@ -93,6 +94,11 @@ export async function POST(request: Request) {
     });
     
     console.log(`📊 Trade recorded: ${trade.id}`);
+    
+    // Update price candles for charts
+    await updateCandles(body.mint, pricePerToken, body.expectedSol).catch(err => {
+      console.warn('Failed to update candles:', err);
+    });
     
     return NextResponse.json({
       success: true,

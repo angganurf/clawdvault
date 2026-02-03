@@ -10,9 +10,17 @@ const RPC_ENDPOINTS = {
   mainnet: 'https://api.mainnet-beta.solana.com',
 };
 
-// Get RPC URL based on network (default devnet for now)
+// Get RPC URL based on network
 export function getRpcUrl(): string {
-  // In production, could use env var or detect from the network
+  // Use NEXT_PUBLIC env var for client-side
+  const rpcUrl = process.env.NEXT_PUBLIC_RPC_URL;
+  if (rpcUrl) return rpcUrl;
+  
+  // Fallback based on network setting
+  const network = process.env.NEXT_PUBLIC_SOLANA_NETWORK || 'devnet';
+  if (network === 'mainnet-beta') {
+    return RPC_ENDPOINTS.mainnet;
+  }
   return RPC_ENDPOINTS.devnet;
 }
 

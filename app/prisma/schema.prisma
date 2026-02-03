@@ -229,3 +229,27 @@ model ChatReaction {
   @@index([messageId])
   @@map("chat_reactions")
 }
+
+// Price candles for charts (OHLCV)
+model PriceCandle {
+  id        String   @id @default(uuid())
+  tokenMint String   @map("token_mint")
+  
+  interval   String   // '1m', '5m', '15m', '1h', '1d'
+  bucketTime DateTime @map("bucket_time")
+  
+  open   Decimal @db.Decimal(30, 18)
+  high   Decimal @db.Decimal(30, 18)
+  low    Decimal @db.Decimal(30, 18)
+  close  Decimal @db.Decimal(30, 18)
+  volume Decimal @db.Decimal(20, 9)  // SOL volume
+  trades Int     @default(1)
+  
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  
+  @@unique([tokenMint, interval, bucketTime])
+  @@index([tokenMint, interval])
+  @@index([bucketTime])
+  @@map("price_candles")
+}

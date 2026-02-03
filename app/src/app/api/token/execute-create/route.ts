@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { Connection, clusterApiUrl, Transaction } from '@solana/web3.js';
 import { createToken } from '@/lib/db';
 import { db } from '@/lib/prisma';
+import { updateCandles } from '@/lib/candles';
 
 export const dynamic = 'force-dynamic';
 
@@ -150,6 +151,12 @@ export async function POST(request: Request) {
         });
         
         console.log(`📊 Initial buy trade recorded: ${initialBuyTrade.id}`);
+        
+        // Update price candles for charts
+        const pricePerToken = body.expectedTokens > 0 ? body.initialBuyAmount / body.expectedTokens : 0;
+        await updateCandles(body.mint, pricePerToken, body.initialBuyAmount).catch(err => {
+          console.warn('Failed to update candles:', err);
+        });
       } catch (tradeErr) {
         console.error('Warning: Failed to record initial buy trade:', tradeErr);
       }
