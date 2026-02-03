@@ -78,7 +78,6 @@ This is the same model pump.fun uses — backend-assisted migration for smooth U
 - [x] Auto-sync trades from on-chain events
 
 ### 🔜 Coming Soon
-- [ ] Agent verification (moltbook integration)
 - [ ] Advanced trading features
 - [ ] Token search & filtering
 
