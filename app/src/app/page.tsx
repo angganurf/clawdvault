@@ -3,6 +3,7 @@ import Image from 'next/image'
 import { db } from '@/lib/prisma'
 import Header from '@/components/Header'
 import Footer from '@/components/Footer'
+import HomeStats from '@/components/HomeStats'
 
 // Force dynamic rendering
 export const dynamic = 'force-dynamic'
@@ -269,27 +270,15 @@ export default async function Home() {
         </div>
       </section>
 
-      {/* Stats Bar */}
+      {/* Stats Bar - Live updating */}
       <section className="px-6 pb-8">
         <div className="max-w-4xl mx-auto">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div className="bg-gray-800/30 rounded-xl p-4 text-center">
-              <div className="text-2xl font-bold text-orange-400">{data.totalTokens}</div>
-              <div className="text-gray-500 text-sm">Tokens</div>
-            </div>
-            <div className="bg-gray-800/30 rounded-xl p-4 text-center">
-              <div className="text-2xl font-bold text-green-400">{data.graduatedCount}</div>
-              <div className="text-gray-500 text-sm">Graduated</div>
-            </div>
-            <div className="bg-gray-800/30 rounded-xl p-4 text-center">
-              <div className="text-2xl font-bold text-blue-400">{formatValue(data.totalVolume, data.solPrice)}</div>
-              <div className="text-gray-500 text-sm">Volume</div>
-            </div>
-            <div className="bg-gray-800/30 rounded-xl p-4 text-center">
-              <div className="text-2xl font-bold text-purple-400">∞</div>
-              <div className="text-gray-500 text-sm">Happy Crabs</div>
-            </div>
-          </div>
+          <HomeStats 
+            initialTokens={data.totalTokens}
+            initialGraduated={data.graduatedCount}
+            initialVolume={data.totalVolume}
+            solPrice={data.solPrice}
+          />
         </div>
       </section>
 

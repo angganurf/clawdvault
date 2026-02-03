@@ -180,3 +180,74 @@ export function unsubscribeChannel(channel: RealtimeChannel): void {
   const client = getSupabaseClient();
   client.removeChannel(channel);
 }
+
+// Subscribe to all token changes (for browse/home pages)
+export function subscribeToAllTokens(
+  onInsert: (token: any) => void,
+  onUpdate: (token: any) => void
+): RealtimeChannel {
+  const client = getSupabaseClient();
+  
+  console.log('[Realtime] Subscribing to all tokens');
+  
+  const channel = client
+    .channel('all-tokens')
+    .on(
+      'postgres_changes',
+      {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'tokens'
+      },
+      (payload) => {
+        console.log('[Realtime] New token created:', payload.new);
+        onInsert(payload.new);
+      }
+    )
+    .on(
+      'postgres_changes',
+      {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'tokens'
+      },
+      (payload) => {
+        console.log('[Realtime] Token updated:', payload.new);
+        onUpdate(payload.new);
+      }
+    )
+    .subscribe((status) => {
+      console.log('[Realtime] All tokens subscription status:', status);
+    });
+  
+  return channel;
+}
+
+// Subscribe to all trades (for volume updates)
+export function subscribeToAllTrades(
+  onInsert: (trade: any) => void
+): RealtimeChannel {
+  const client = getSupabaseClient();
+  
+  console.log('[Realtime] Subscribing to all trades');
+  
+  const channel = client
+    .channel('all-trades')
+    .on(
+      'postgres_changes',
+      {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'trades'
+      },
+      (payload) => {
+        console.log('[Realtime] New trade:', payload.new);
+        onInsert(payload.new);
+      }
+    )
+    .subscribe((status) => {
+      console.log('[Realtime] All trades subscription status:', status);
+    });
+  
+  return channel;
+}
