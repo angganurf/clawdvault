@@ -616,9 +616,9 @@ export default function TokenPage({ params }: { params: Promise<{ mint: string }
                 key={chartKey}
                 mint={token.mint} 
                 height={500}
-                currentPrice={onChainStats?.price ?? token.price_sol}
-                marketCapSol={onChainStats?.marketCap ?? token.market_cap_sol}
-                marketCapUsd={solPrice ? (onChainStats?.marketCap ?? token.market_cap_sol) * solPrice : null}
+                currentPrice={onChainStats?.price ?? 0}
+                marketCapSol={onChainStats?.marketCap ?? 0}
+                marketCapUsd={solPrice && onChainStats?.marketCap ? onChainStats.marketCap * solPrice : null}
                 volume24h={token.volume_24h || 0}
                 solPrice={solPrice}
                 holders={holders.length > 0 ? holders.length : (token.holders || 0)}
