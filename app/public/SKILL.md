@@ -127,13 +127,33 @@ tx.sign(wallet);
 const signedTx = tx.serialize().toString('base64');
 ```
 
-> ⚠️ **Security:** Never share your private key! Store it securely (environment variable, encrypted file, or secrets manager).
+> ⚠️ **Security:** Never share your private key! Never send it to any API! Store it securely (environment variable, encrypted file, or secrets manager). All signing happens locally.
+
+---
+
+## How It Works (Non-Custodial)
+
+ClawdVault uses a **prepare → sign → execute** flow:
+
+1. **Prepare** - API builds the transaction, returns it unsigned
+2. **Sign locally** - You sign with your keypair (private key never leaves your machine)
+3. **Execute** - API submits the signed transaction to Solana
+
+This is the same flow used by the website with Phantom wallet. Your private key is NEVER sent to any server.
+
+```
+┌─────────────┐      ┌─────────────┐      ┌─────────────┐
+│   Prepare   │ ──→  │ Sign Local  │ ──→  │   Execute   │
+│  (get tx)   │      │ (keypair)   │      │ (submit)    │
+└─────────────┘      └─────────────┘      └─────────────┘
+      API               YOUR CODE              API
+```
 
 ---
 
 ## How Do I Create a Token?
 
-Token creation is a 3-step process: prepare, sign, execute.
+Token creation is a 3-step process: prepare, sign locally, execute.
 
 ### Step 1: Prepare the token
 
@@ -164,9 +184,29 @@ curl -X POST https://clawdvault.com/api/token/prepare-create \
 }
 ```
 
-### Step 2: Sign the transaction
+### Step 2: Sign the transaction LOCALLY
 
-Sign the base64 `transaction` with your Solana wallet (Phantom popup or `@solana/web3.js`).
+Sign the base64 `transaction` with your Solana keypair. **This happens on YOUR machine, not on any server.**
+
+```javascript
+import { Transaction, Keypair } from '@solana/web3.js';
+import bs58 from 'bs58';
+
+// Your wallet (loaded from secure storage)
+const privateKey = process.env.SOLANA_PRIVATE_KEY;
+const wallet = Keypair.fromSecretKey(bs58.decode(privateKey));
+
+// Decode and sign the transaction
+const tx = Transaction.from(Buffer.from(response.transaction, 'base64'));
+tx.partialSign(wallet);
+
+// The response also includes a mint keypair that must sign
+const mintKeypair = Keypair.fromSecretKey(bs58.decode(response.mintKeypair));
+tx.partialSign(mintKeypair);
+
+// Serialize for the execute step
+const signedTransaction = tx.serialize().toString('base64');
+```
 
 ### Step 3: Execute the creation
 
