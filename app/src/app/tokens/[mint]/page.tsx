@@ -842,11 +842,11 @@ export default function TokenPage({ params }: { params: Promise<{ mint: string }
               <h3 className="text-white font-semibold mb-4">Trade</h3>
 
               {token.graduated && (
-                <div className="text-center py-4 mb-4 bg-purple-900/30 rounded-lg border border-purple-500/30">
+                <div className="text-center py-4 mb-4 bg-green-900/30 rounded-lg border border-green-500/30">
                   <div className="text-2xl mb-1">🎓</div>
-                  <div className="text-purple-300 font-medium text-sm">Graduation Threshold Reached!</div>
+                  <div className="text-green-300 font-medium text-sm">Graduated to Raydium!</div>
                   <div className="text-gray-400 text-xs">
-                    Raydium migration coming in future update. Trading continues below.
+                    Trading via Jupiter aggregator
                   </div>
                 </div>
               )}
