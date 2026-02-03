@@ -364,24 +364,43 @@ export default function TokenPage({ params }: { params: Promise<{ mint: string }
           return;
         }
         
-        // Send to Solana directly (Jupiter transactions are complete)
-        const connection = new (await import('@solana/web3.js')).Connection(
-          process.env.NEXT_PUBLIC_SOLANA_RPC_URL || 'https://api.mainnet-beta.solana.com'
-        );
-        const txBuf = Buffer.from(signedTx, 'base64');
-        const signature = await connection.sendRawTransaction(txBuf, {
-          skipPreflight: false,
-          maxRetries: 3,
+        console.log('Transaction signed, executing via API...');
+        
+        // Calculate amounts from quote for DB recording
+        const solAmountDecimal = tradeType === 'buy' 
+          ? Number(jupiterData.quote.inAmount) / 1e9
+          : Number(jupiterData.quote.outAmount) / 1e9;
+        const tokenAmountDecimal = tradeType === 'buy'
+          ? Number(jupiterData.quote.outAmount) / 1e6
+          : Number(jupiterData.quote.inAmount) / 1e6;
+        
+        // Execute via our API (sends to Solana + records in DB)
+        const executeRes = await fetch('/api/trade/jupiter/execute', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            mint: token.mint,
+            signedTransaction: signedTx,
+            type: tradeType,
+            wallet: publicKey,
+            solAmount: solAmountDecimal,
+            tokenAmount: tokenAmountDecimal,
+          }),
         });
         
-        console.log('Jupiter swap sent:', signature);
+        const executeData = await executeRes.json();
         
-        // Wait for confirmation
-        await connection.confirmTransaction(signature, 'confirmed');
+        if (!executeData.success) {
+          setTradeResult({ success: false, error: executeData.error || 'Jupiter trade failed' });
+          return;
+        }
+        
+        console.log('Jupiter trade executed:', executeData.signature);
         
         setTradeResult({
           success: true,
-          signature,
+          signature: executeData.signature,
+          trade: executeData.trade,
           message: 'Trade executed via Jupiter!',
         });
         setAmount('');
