@@ -11,15 +11,18 @@ const RPC_ENDPOINTS = {
 };
 
 // Get RPC URL based on network
+// NOTE: Client-side uses public RPCs to avoid leaking API keys
 export function getRpcUrl(): string {
-  // Use NEXT_PUBLIC env var for client-side
-  const rpcUrl = process.env.NEXT_PUBLIC_RPC_URL;
-  if (rpcUrl) return rpcUrl;
+  // Server-side can use private RPC with API key
+  if (typeof window === 'undefined') {
+    const serverRpc = process.env.SOLANA_RPC_URL || process.env.NEXT_PUBLIC_RPC_URL;
+    if (serverRpc) return serverRpc;
+  }
   
-  // Fallback based on network setting
+  // Client-side: use public RPCs only (no API keys!)
   const network = process.env.NEXT_PUBLIC_SOLANA_NETWORK || 'devnet';
   if (network === 'mainnet-beta') {
-    return RPC_ENDPOINTS.mainnet;
+    return RPC_ENDPOINTS.mainnet; // Public mainnet RPC
   }
   return RPC_ENDPOINTS.devnet;
 }
