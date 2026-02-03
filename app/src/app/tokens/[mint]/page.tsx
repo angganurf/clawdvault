@@ -28,6 +28,7 @@ export default function TokenPage({ params }: { params: Promise<{ mint: string }
   const [tradeResult, setTradeResult] = useState<TradeResponse | null>(null);
   const [copied, setCopied] = useState(false);
   const [tokenBalance, setTokenBalance] = useState<number>(0);
+  const [tokenBalanceLoading, setTokenBalanceLoading] = useState(false);
   const [holders, setHolders] = useState<Array<{
     address: string;
     balance: number;
@@ -47,13 +48,16 @@ export default function TokenPage({ params }: { params: Promise<{ mint: string }
   const fetchTokenBalance = useCallback(async () => {
     if (!connected || !publicKey || !token) {
       setTokenBalance(0);
+      setTokenBalanceLoading(false);
       return;
     }
 
+    setTokenBalanceLoading(true);
     try {
       // Use client-side RPC to avoid rate limiting
       const balance = await fetchBalanceClient(mint, publicKey);
       setTokenBalance(balance);
+      setTokenBalanceLoading(false);
     } catch (err) {
       console.error('Failed to fetch token balance:', err);
       // Fallback to API
@@ -65,6 +69,8 @@ export default function TokenPage({ params }: { params: Promise<{ mint: string }
         }
       } catch (e) {
         setTokenBalance(0);
+      } finally {
+        setTokenBalanceLoading(false);
       }
     }
   }, [connected, publicKey, token, mint]);
@@ -754,13 +760,19 @@ export default function TokenPage({ params }: { params: Promise<{ mint: string }
                     <div className="bg-gray-700/50 rounded-lg p-3 mb-4">
                       <div className="flex justify-between text-sm">
                         <span className="text-gray-400">Your SOL</span>
-                        <span className="text-white font-mono">
-                          {solBalance !== null ? solBalance.toFixed(4) : '...'}
-                        </span>
+                        {solBalance === null ? (
+                          <span className="h-4 w-16 bg-gray-600 rounded animate-pulse" />
+                        ) : (
+                          <span className="text-white font-mono">{solBalance.toFixed(4)}</span>
+                        )}
                       </div>
                       <div className="flex justify-between text-sm mt-1">
                         <span className="text-gray-400">Your ${token.symbol}</span>
-                        <span className="text-white font-mono">{formatNumber(tokenBalance)}</span>
+                        {tokenBalanceLoading ? (
+                          <span className="h-4 w-20 bg-gray-600 rounded animate-pulse" />
+                        ) : (
+                          <span className="text-white font-mono">{formatNumber(tokenBalance)}</span>
+                        )}
                       </div>
                     </div>
                   )}
