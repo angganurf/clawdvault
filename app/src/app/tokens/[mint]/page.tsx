@@ -268,6 +268,27 @@ export default function TokenPage({ params }: { params: Promise<{ mint: string }
     }
   }, [token, amount, tradeType, estimatedOutput]);
 
+  // Calculate max sellable tokens based on real liquidity
+  const maxSellableTokens = useMemo(() => {
+    if (!token || !token.real_sol_reserves || token.real_sol_reserves <= 0) {
+      return 0;
+    }
+    // From constant product: sol_out = virtual_sol - (k / (virtual_tokens + tokens_in))
+    // We want sol_out = real_sol_reserves (max withdrawable)
+    // So: real_sol = virtual_sol - (k / (virtual_tokens + max_tokens))
+    // k / (virtual_tokens + max_tokens) = virtual_sol - real_sol
+    // virtual_tokens + max_tokens = k / (virtual_sol - real_sol)
+    // max_tokens = k / (virtual_sol - real_sol) - virtual_tokens
+    const k = token.virtual_sol_reserves * token.virtual_token_reserves;
+    const minVirtualSol = token.virtual_sol_reserves - token.real_sol_reserves;
+    if (minVirtualSol <= 0) return tokenBalance; // All liquidity available
+    const maxVirtualTokens = k / minVirtualSol;
+    const maxTokens = maxVirtualTokens - token.virtual_token_reserves;
+    // Account for 1% fee (we need to input more to get the net amount)
+    const maxTokensWithFee = maxTokens / 0.99;
+    return Math.min(maxTokensWithFee, tokenBalance);
+  }, [token, tokenBalance]);
+
   const handleTrade = async () => {
     if (!amount || !token || !connected || !publicKey) return;
     
@@ -390,7 +411,9 @@ export default function TokenPage({ params }: { params: Promise<{ mint: string }
   };
 
   const handleQuickSell = (percent: number) => {
-    const tokenAmount = (tokenBalance * percent / 100);
+    // Cap at maxSellableTokens based on liquidity
+    const effectiveMax = Math.min(tokenBalance, maxSellableTokens);
+    const tokenAmount = (effectiveMax * percent / 100);
     setAmount(tokenAmount.toString());
   };
 
@@ -796,8 +819,11 @@ export default function TokenPage({ params }: { params: Promise<{ mint: string }
                         <span className="text-gray-500">
                           Max: {tradeType === 'buy' 
                             ? (solBalance?.toFixed(4) || '0') + ' SOL'
-                            : formatNumber(tokenBalance)
+                            : formatNumber(Math.min(tokenBalance, maxSellableTokens))
                           }
+                          {tradeType === 'sell' && maxSellableTokens < tokenBalance && (
+                            <span className="text-yellow-500 ml-1" title="Limited by curve liquidity">⚠️</span>
+                          )}
                         </span>
                       )}
                     </div>
@@ -814,7 +840,7 @@ export default function TokenPage({ params }: { params: Promise<{ mint: string }
                       <button
                         onClick={() => setAmount(tradeType === 'buy' 
                           ? (solBalance || 0).toString() 
-                          : tokenBalance.toString()
+                          : Math.min(tokenBalance, maxSellableTokens).toString()
                         )}
                         className="absolute right-2 top-1/2 -translate-y-1/2 bg-orange-500/20 hover:bg-orange-500/30 text-orange-400 px-2 py-1 rounded text-sm transition"
                       >
