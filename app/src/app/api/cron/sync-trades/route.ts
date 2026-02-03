@@ -27,7 +27,7 @@ export async function GET(request: Request) {
     // Use canonical URL in prod, fallback to VERCEL_URL, then localhost
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL 
       || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : null)
-      || 'http://localhost:3000';
+      || (process.env.VERCEL ? 'https://clawdvault.com' : 'http://localhost:3000');
     
     const response = await fetch(`${baseUrl}/api/sync/trades?limit=200`, {
       method: 'GET',
