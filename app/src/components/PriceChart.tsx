@@ -194,6 +194,9 @@ export default function PriceChart({
       chartRef.current.removeSeries(seriesRef.current);
     }
 
+    // Convert to USD if solPrice available, otherwise show SOL market cap
+    const priceMultiplier = totalSupply * (solPrice || 1);
+    
     if (chartType === 'candle') {
       seriesRef.current = chartRef.current.addCandlestickSeries({
         upColor: '#22c55e',
@@ -207,10 +210,10 @@ export default function PriceChart({
       if (candles.length > 0) {
         const candleData: CandlestickData[] = candles.map(c => ({
           time: c.time as any,
-          open: c.open * totalSupply,
-          high: c.high * totalSupply,
-          low: c.low * totalSupply,
-          close: c.close * totalSupply,
+          open: c.open * priceMultiplier,
+          high: c.high * priceMultiplier,
+          low: c.low * priceMultiplier,
+          close: c.close * priceMultiplier,
         }));
         seriesRef.current.setData(candleData);
       }
@@ -226,7 +229,7 @@ export default function PriceChart({
       if (candles.length > 0) {
         const lineData: LineData[] = candles.map(c => ({
           time: c.time as any,
-          value: c.close * totalSupply,
+          value: c.close * priceMultiplier,
         }));
         seriesRef.current.setData(lineData);
       }
@@ -241,7 +244,7 @@ export default function PriceChart({
     };
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
-  }, [candles, chartType, height, totalSupply, priceChange24h]);
+  }, [candles, chartType, height, totalSupply, priceChange24h, solPrice]);
 
   useEffect(() => {
     return () => {
