@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
-import { Connection, clusterApiUrl, Transaction } from '@solana/web3.js';
+import { Connection, clusterApiUrl, Transaction, PublicKey } from '@solana/web3.js';
 import { getToken, recordTrade } from '@/lib/db';
+import { PROGRAM_ID } from '@/lib/anchor/client';
 
 export const dynamic = 'force-dynamic';
 
@@ -10,13 +11,95 @@ function getConnection(): Connection {
   return new Connection(rpcUrl, 'confirmed');
 }
 
+// TradeEvent discriminator (first 8 bytes of sha256("event:TradeEvent"))
+const TRADE_EVENT_DISCRIMINATOR = Buffer.from([189, 219, 127, 211, 78, 230, 97, 238]);
+
+interface ParsedTradeEvent {
+  mint: string;
+  trader: string;
+  isBuy: boolean;
+  solAmount: bigint;
+  tokenAmount: bigint;
+  protocolFee: bigint;
+  creatorFee: bigint;
+  virtualSolReserves: bigint;
+  virtualTokenReserves: bigint;
+  timestamp: bigint;
+}
+
+/**
+ * Parse TradeEvent from transaction logs
+ */
+function parseTradeEventFromLogs(logs: string[]): ParsedTradeEvent | null {
+  for (const log of logs) {
+    // Anchor events are logged as "Program data: <base64>"
+    if (log.startsWith('Program data: ')) {
+      const base64Data = log.slice('Program data: '.length);
+      try {
+        const data = Buffer.from(base64Data, 'base64');
+        
+        // Check discriminator
+        if (data.length >= 8 && data.slice(0, 8).equals(TRADE_EVENT_DISCRIMINATOR)) {
+          // Parse the event data (offset 8 to skip discriminator)
+          let offset = 8;
+          
+          const mint = new PublicKey(data.slice(offset, offset + 32)).toBase58();
+          offset += 32;
+          
+          const trader = new PublicKey(data.slice(offset, offset + 32)).toBase58();
+          offset += 32;
+          
+          const isBuy = data[offset] === 1;
+          offset += 1;
+          
+          const solAmount = data.readBigUInt64LE(offset);
+          offset += 8;
+          
+          const tokenAmount = data.readBigUInt64LE(offset);
+          offset += 8;
+          
+          const protocolFee = data.readBigUInt64LE(offset);
+          offset += 8;
+          
+          const creatorFee = data.readBigUInt64LE(offset);
+          offset += 8;
+          
+          const virtualSolReserves = data.readBigUInt64LE(offset);
+          offset += 8;
+          
+          const virtualTokenReserves = data.readBigUInt64LE(offset);
+          offset += 8;
+          
+          const timestamp = data.readBigInt64LE(offset);
+          
+          return {
+            mint,
+            trader,
+            isBuy,
+            solAmount,
+            tokenAmount,
+            protocolFee,
+            creatorFee,
+            virtualSolReserves,
+            virtualTokenReserves,
+            timestamp,
+          };
+        }
+      } catch (e) {
+        // Not our event, continue
+      }
+    }
+  }
+  return null;
+}
+
 interface ExecuteTradeRequest {
   signedTransaction: string;  // Base64 encoded signed transaction
   mint: string;
   type: 'buy' | 'sell';
   wallet: string;
-  solAmount: number;
-  tokenAmount: number;
+  // Note: solAmount and tokenAmount from client are now ignored for recording
+  // We parse the actual amounts from on-chain TradeEvent
 }
 
 /**
@@ -77,27 +160,40 @@ export async function POST(request: Request) {
     
     console.log(`✅ Transaction confirmed: ${signature}`);
     
-    // Record the trade in database
-    try {
-      await recordTrade({
-        mint: body.mint,
-        type: body.type,
-        wallet: body.wallet,
-        solAmount: body.solAmount,
-        tokenAmount: body.tokenAmount,
-        signature,
-        timestamp: new Date(),
-      });
-    } catch (dbError) {
-      console.error('Warning: Failed to record trade in database:', dbError);
-      // Don't fail the request - trade succeeded on-chain
-    }
-    
-    // Get transaction details for response
+    // Get transaction details including logs
     const txDetails = await connection.getTransaction(signature, {
       commitment: 'confirmed',
       maxSupportedTransactionVersion: 0,
     });
+    
+    // Parse TradeEvent from logs to get ACTUAL amounts (prevents spoofing)
+    let tradeEvent: ParsedTradeEvent | null = null;
+    if (txDetails?.meta?.logMessages) {
+      tradeEvent = parseTradeEventFromLogs(txDetails.meta.logMessages);
+    }
+    
+    // Record the trade in database using ON-CHAIN data
+    try {
+      if (tradeEvent) {
+        // Use verified on-chain data
+        await recordTrade({
+          mint: tradeEvent.mint,
+          type: tradeEvent.isBuy ? 'buy' : 'sell',
+          wallet: tradeEvent.trader,
+          solAmount: Number(tradeEvent.solAmount) / 1e9, // lamports to SOL
+          tokenAmount: Number(tradeEvent.tokenAmount) / 1e6, // with decimals
+          signature,
+          timestamp: new Date(Number(tradeEvent.timestamp) * 1000),
+        });
+        console.log(`📊 Trade recorded from on-chain event: ${tradeEvent.isBuy ? 'BUY' : 'SELL'} ${Number(tradeEvent.solAmount) / 1e9} SOL`);
+      } else {
+        console.warn('⚠️ Could not parse TradeEvent from logs - trade not recorded in DB');
+        // Don't fall back to client data - that would defeat the purpose
+      }
+    } catch (dbError) {
+      console.error('Warning: Failed to record trade in database:', dbError);
+      // Don't fail the request - trade succeeded on-chain
+    }
     
     return NextResponse.json({
       success: true,
@@ -107,6 +203,16 @@ export async function POST(request: Request) {
       }`,
       slot: confirmation.context?.slot,
       blockTime: txDetails?.blockTime,
+      // Return verified on-chain amounts
+      trade: tradeEvent ? {
+        mint: tradeEvent.mint,
+        trader: tradeEvent.trader,
+        type: tradeEvent.isBuy ? 'buy' : 'sell',
+        solAmount: Number(tradeEvent.solAmount) / 1e9,
+        tokenAmount: Number(tradeEvent.tokenAmount) / 1e6,
+        protocolFee: Number(tradeEvent.protocolFee) / 1e9,
+        creatorFee: Number(tradeEvent.creatorFee) / 1e9,
+      } : null,
     });
     
   } catch (error) {
