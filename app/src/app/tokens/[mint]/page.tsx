@@ -660,7 +660,16 @@ export default function TokenPage({ params }: { params: Promise<{ mint: string }
               </div>
 
               {/* Price Chart */}
-              <PriceChart mint={token.mint} height={280} />
+              <PriceChart 
+                mint={token.mint} 
+                height={420}
+                currentPrice={onChainStats?.price ?? token.price_sol}
+                marketCapSol={onChainStats?.marketCap ?? token.market_cap_sol}
+                marketCapUsd={solPrice ? (onChainStats?.marketCap ?? token.market_cap_sol) * solPrice : null}
+                bondingProgress={progressPercent}
+                volume24h={token.volume_24h || 0}
+                solPrice={solPrice}
+              />
 
               {/* Holder Distribution - mobile only (desktop version is in sidebar) */}
               <div className="bg-gray-800/50 rounded-xl p-5 lg:hidden">
