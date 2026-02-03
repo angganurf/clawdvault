@@ -2,7 +2,6 @@ import { NextResponse } from 'next/server';
 import { Connection, clusterApiUrl, Transaction } from '@solana/web3.js';
 import { createToken } from '@/lib/db';
 import { db } from '@/lib/prisma';
-import { updateCandles } from '@/lib/candles';
 
 export const dynamic = 'force-dynamic';
 
@@ -124,38 +123,23 @@ export async function POST(request: Request) {
     }
     
     // Record initial buy as a trade if there was one
+    // IMPORTANT: Use recordTrade() to properly update token reserves!
     let initialBuyTrade = null;
     if (body.initialBuy && body.initialBuy.solAmount > 0) {
       try {
-        const totalFee = body.initialBuy.solAmount * 0.01;
-        const protocolFee = totalFee * 0.5;
-        const creatorFee = totalFee * 0.5;
-        const pricePerToken = body.initialBuy.estimatedTokens > 0 
-          ? body.initialBuy.solAmount / body.initialBuy.estimatedTokens 
-          : 0;
+        const { recordTrade } = await import('@/lib/db');
         
-        initialBuyTrade = await db().trade.create({
-          data: {
-            tokenId: token.id,
-            tokenMint: body.mint,
-            trader: body.creator,
-            tradeType: 'BUY',
-            solAmount: body.initialBuy.solAmount,
-            tokenAmount: body.initialBuy.estimatedTokens,
-            priceSol: pricePerToken,
-            totalFee: totalFee,
-            protocolFee: protocolFee,
-            creatorFee: creatorFee,
-            signature: signature,
-          },
+        const tradeResult = await recordTrade({
+          mint: body.mint,
+          type: 'buy',
+          wallet: body.creator,
+          solAmount: body.initialBuy.solAmount,
+          tokenAmount: body.initialBuy.estimatedTokens,
+          signature: signature,
         });
         
-        console.log(`📊 Initial buy trade recorded: ${initialBuyTrade.id}`);
-        
-        // Update price candles for charts
-        await updateCandles(body.mint, pricePerToken, body.initialBuy.solAmount).catch(err => {
-          console.warn('Failed to update candles:', err);
-        });
+        initialBuyTrade = tradeResult?.trade;
+        console.log(`📊 Initial buy trade recorded with reserves update: ${initialBuyTrade?.id}`);
       } catch (tradeErr) {
         console.error('Warning: Failed to record initial buy trade:', tradeErr);
       }
