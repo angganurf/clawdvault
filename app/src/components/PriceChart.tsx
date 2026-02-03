@@ -146,14 +146,14 @@ export default function PriceChart({
       fetch24hCandles();
     });
 
-    // Also poll every 30s as backup
-    const refreshInterval = window.setInterval(() => {
-      fetchCandles();
-      fetch24hCandles();
-    }, 30000);
+    // Polling disabled for now - testing realtime only
+    // const refreshInterval = window.setInterval(() => {
+    //   fetchCandles();
+    //   fetch24hCandles();
+    // }, 30000);
 
     return () => {
-      window.clearInterval(refreshInterval);
+      // window.clearInterval(refreshInterval);
       unsubscribeChannel(candleChannel);
     };
   }, [mint, timeInterval, fetchCandles, fetch24hCandles]);
