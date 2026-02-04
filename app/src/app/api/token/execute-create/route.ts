@@ -122,68 +122,15 @@ export async function POST(request: Request) {
       });
     }
     
-    // Verify and record initial buy from on-chain transaction (not from request body!)
-    let initialBuyTrade = null;
-    let verifiedInitialBuy: { solAmount: number; tokenAmount: number } | null = null;
-    
-    try {
-      // Fetch the confirmed transaction to verify initial buy
-      const tx = await connection.getTransaction(signature, {
-        commitment: 'confirmed',
-        maxSupportedTransactionVersion: 0,
-      });
-      
-      if (tx?.meta?.logMessages) {
-        // Parse "🎯 Initial buy: X lamports -> Y tokens" from logs
-        for (const log of tx.meta.logMessages) {
-          const match = log.match(/Initial buy: (\d+) lamports -> (\d+) tokens/);
-          if (match) {
-            verifiedInitialBuy = {
-              solAmount: parseInt(match[1]) / 1e9, // lamports to SOL
-              tokenAmount: parseInt(match[2]) / 1e6, // raw to tokens (6 decimals)
-            };
-            console.log(`🔍 Verified initial buy from tx: ${verifiedInitialBuy.solAmount} SOL`);
-            break;
-          }
-        }
-      }
-    } catch (txErr) {
-      console.error('Warning: Failed to fetch transaction for verification:', txErr);
-    }
-    
-    // Record trade only with verified on-chain values
-    if (verifiedInitialBuy && verifiedInitialBuy.solAmount > 0) {
-      try {
-        const { recordTrade } = await import('@/lib/db');
-        
-        initialBuyTrade = await recordTrade({
-          mint: body.mint,
-          type: 'buy',
-          wallet: body.creator,
-          solAmount: verifiedInitialBuy.solAmount,
-          tokenAmount: verifiedInitialBuy.tokenAmount,
-          signature: signature,
-        });
-        
-        console.log(`📊 Initial buy trade recorded (verified): ${initialBuyTrade?.id}`);
-      } catch (tradeErr) {
-        console.error('Warning: Failed to record initial buy trade:', tradeErr);
-      }
-    } else if (body.initialBuy && body.initialBuy.solAmount > 0) {
-      console.warn(`⚠️ Initial buy claimed (${body.initialBuy.solAmount} SOL) but not verified on-chain!`);
-    }
+    // NOTE: Initial buy trades are now handled by sync-trades via TradeEvent
+    // The contract emits TradeEvent for initial buys, so sync-trades catches them automatically
+    // No need to manually record here - avoids duplicates and ensures on-chain reserves are used
     
     return NextResponse.json({
       success: true,
       token,
       signature,
       mint: body.mint,
-      initialBuyTrade: initialBuyTrade ? {
-        id: initialBuyTrade.id,
-        solAmount: verifiedInitialBuy?.solAmount,
-        tokenAmount: verifiedInitialBuy?.tokenAmount,
-        verified: true,
-      } : null,
       explorer: `https://explorer.solana.com/tx/${signature}?cluster=${
         process.env.SOLANA_NETWORK || 'devnet'
       }`,
