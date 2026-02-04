@@ -223,9 +223,9 @@ async function main() {
     
     console.log("🎉 All tests passed!");
     console.log(`\n📜 Explorer links:`);
-    console.log(`   Create: https://explorer.solana.com/tx/${createTx}?cluster=devnet`);
-    console.log(`   Buy: https://explorer.solana.com/tx/${buyTx}?cluster=devnet`);
-    console.log(`   Sell: https://explorer.solana.com/tx/${sellTx}?cluster=devnet`);
+    console.log(`   Create: https://solscan.io/tx/${createTx}?cluster=devnet`);
+    console.log(`   Buy: https://solscan.io/tx/${buyTx}?cluster=devnet`);
+    console.log(`   Sell: https://solscan.io/tx/${sellTx}?cluster=devnet`);
     
   } catch (error: any) {
     console.error("❌ Error:", error.message);

@@ -109,7 +109,7 @@ solana-verify remote submit-job \
 
 Check verification status at:
 - [OtterSec API](https://verify.osec.io/status/GUyF2TVe32Cid4iGVt2F6wPYDhLSVmTUZBj2974outYM)
-- [Solana Explorer](https://explorer.solana.com/address/GUyF2TVe32Cid4iGVt2F6wPYDhLSVmTUZBj2974outYM)
+- [Solana Explorer](https://solscan.io/account/GUyF2TVe32Cid4iGVt2F6wPYDhLSVmTUZBj2974outYM)
 - [SolanaFM](https://solana.fm/address/GUyF2TVe32Cid4iGVt2F6wPYDhLSVmTUZBj2974outYM)
 
 ## Troubleshooting

@@ -294,7 +294,7 @@ export default function CreatePage() {
               <div className="bg-gray-800 rounded-lg p-4 font-mono text-sm mb-4">
                 <div className="text-gray-500">Mint Address:</div>
                 <a
-                  href={`https://explorer.solana.com/address/${result.mint}?cluster=${process.env.NEXT_PUBLIC_SOLANA_NETWORK || 'devnet'}`}
+                  href={`https://solscan.io/account/${result.mint}?cluster=${process.env.NEXT_PUBLIC_SOLANA_NETWORK || 'devnet'}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-orange-400 hover:text-orange-300 break-all underline"

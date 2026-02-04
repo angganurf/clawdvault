@@ -113,7 +113,7 @@ export async function POST(request: Request) {
         warning: 'Token created on-chain but database record failed',
         signature,
         mint: body.mint,
-        explorer: `https://explorer.solana.com/tx/${signature}?cluster=${
+        explorer: `https://solscan.io/tx/${signature}?cluster=${
           process.env.SOLANA_NETWORK || 'devnet'
         }`,
       });
@@ -128,7 +128,7 @@ export async function POST(request: Request) {
       token,
       signature,
       mint: body.mint,
-      explorer: `https://explorer.solana.com/tx/${signature}?cluster=${
+      explorer: `https://solscan.io/tx/${signature}?cluster=${
         process.env.SOLANA_NETWORK || 'devnet'
       }`,
     });

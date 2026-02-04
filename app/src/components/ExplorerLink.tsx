@@ -11,16 +11,16 @@ interface ExplorerLinkProps {
 const NETWORK = process.env.NEXT_PUBLIC_SOLANA_NETWORK || 'devnet';
 
 export function getExplorerUrl(address: string, type: 'address' | 'tx' | 'token' = 'address'): string {
-  const base = 'https://explorer.solana.com';
-  const cluster = NETWORK === 'mainnet' ? '' : `?cluster=${NETWORK}`;
+  const base = 'https://solscan.io';
+  const cluster = NETWORK === 'mainnet-beta' || NETWORK === 'mainnet' ? '' : `?cluster=${NETWORK}`;
   
   switch (type) {
     case 'tx':
       return `${base}/tx/${address}${cluster}`;
     case 'token':
-      return `${base}/address/${address}${cluster}`;
+      return `${base}/token/${address}${cluster}`;
     default:
-      return `${base}/address/${address}${cluster}`;
+      return `${base}/account/${address}${cluster}`;
   }
 }
 

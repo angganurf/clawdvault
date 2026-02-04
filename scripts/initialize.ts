@@ -90,7 +90,7 @@ async function main() {
     .rpc();
   
   console.log(`✅ Initialized! Tx: ${tx}`);
-  console.log(`   Explorer: https://explorer.solana.com/tx/${tx}?cluster=${network}`);
+  console.log(`   Explorer: https://solscan.io/tx/${tx}?cluster=${network}`);
   
   // Verify
   const config = await (program.account as any).config.fetch(configPDA);

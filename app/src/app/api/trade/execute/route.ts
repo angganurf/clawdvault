@@ -167,7 +167,7 @@ export async function POST(request: Request) {
       return NextResponse.json({
         success: true,
         signature,
-        explorer: `https://explorer.solana.com/tx/${signature}?cluster=${
+        explorer: `https://solscan.io/tx/${signature}?cluster=${
           process.env.SOLANA_NETWORK || 'devnet'
         }`,
         duplicate: true,
@@ -215,7 +215,7 @@ export async function POST(request: Request) {
     return NextResponse.json({
       success: true,
       signature,
-      explorer: `https://explorer.solana.com/tx/${signature}?cluster=${
+      explorer: `https://solscan.io/tx/${signature}?cluster=${
         process.env.SOLANA_NETWORK || 'devnet'
       }`,
       slot: confirmation.context?.slot,

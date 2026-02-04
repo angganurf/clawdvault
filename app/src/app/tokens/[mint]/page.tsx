@@ -629,7 +629,7 @@ export default function TokenPage({ params }: { params: Promise<{ mint: string }
                 <span className="flex items-center gap-1">
                   <span className="text-gray-500">CA:</span>
                   <a
-                    href={`https://explorer.solana.com/address/${token.mint}${process.env.NEXT_PUBLIC_SOLANA_NETWORK === 'mainnet-beta' ? '' : '?cluster=' + (process.env.NEXT_PUBLIC_SOLANA_NETWORK || 'devnet')}`}
+                    href={`https://solscan.io/account/${token.mint}${process.env.NEXT_PUBLIC_SOLANA_NETWORK === 'mainnet-beta' ? '' : '?cluster=' + (process.env.NEXT_PUBLIC_SOLANA_NETWORK || 'devnet')}`}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="font-mono text-orange-400 hover:text-orange-300"
@@ -764,7 +764,7 @@ export default function TokenPage({ params }: { params: Promise<{ mint: string }
                         <div className="flex-1 min-w-0">
                           {holder.label ? (
                             <a
-                              href={`https://explorer.solana.com/address/${holder.address}${process.env.NEXT_PUBLIC_SOLANA_NETWORK === 'mainnet-beta' ? '' : '?cluster=' + (process.env.NEXT_PUBLIC_SOLANA_NETWORK || 'devnet')}`}
+                              href={`https://solscan.io/account/${holder.address}${process.env.NEXT_PUBLIC_SOLANA_NETWORK === 'mainnet-beta' ? '' : '?cluster=' + (process.env.NEXT_PUBLIC_SOLANA_NETWORK || 'devnet')}`}
                               target="_blank"
                               rel="noopener noreferrer"
                               className={`font-medium text-sm hover:underline ${
@@ -773,7 +773,7 @@ export default function TokenPage({ params }: { params: Promise<{ mint: string }
                             >{holder.label}</a>
                           ) : (
                             <a
-                              href={`https://explorer.solana.com/address/${holder.address}${process.env.NEXT_PUBLIC_SOLANA_NETWORK === 'mainnet-beta' ? '' : '?cluster=' + (process.env.NEXT_PUBLIC_SOLANA_NETWORK || 'devnet')}`}
+                              href={`https://solscan.io/account/${holder.address}${process.env.NEXT_PUBLIC_SOLANA_NETWORK === 'mainnet-beta' ? '' : '?cluster=' + (process.env.NEXT_PUBLIC_SOLANA_NETWORK || 'devnet')}`}
                               target="_blank"
                               rel="noopener noreferrer"
                               className="text-gray-300 hover:text-cyan-400 font-mono text-sm truncate hover:underline"
@@ -1123,7 +1123,7 @@ export default function TokenPage({ params }: { params: Promise<{ mint: string }
                         <div className="flex-1 min-w-0">
                           {holder.label ? (
                             <a
-                              href={`https://explorer.solana.com/address/${holder.address}${process.env.NEXT_PUBLIC_SOLANA_NETWORK === 'mainnet-beta' ? '' : '?cluster=' + (process.env.NEXT_PUBLIC_SOLANA_NETWORK || 'devnet')}`}
+                              href={`https://solscan.io/account/${holder.address}${process.env.NEXT_PUBLIC_SOLANA_NETWORK === 'mainnet-beta' ? '' : '?cluster=' + (process.env.NEXT_PUBLIC_SOLANA_NETWORK || 'devnet')}`}
                               target="_blank"
                               rel="noopener noreferrer"
                               className={`font-medium text-sm hover:underline ${
@@ -1132,7 +1132,7 @@ export default function TokenPage({ params }: { params: Promise<{ mint: string }
                             >{holder.label}</a>
                           ) : (
                             <a
-                              href={`https://explorer.solana.com/address/${holder.address}${process.env.NEXT_PUBLIC_SOLANA_NETWORK === 'mainnet-beta' ? '' : '?cluster=' + (process.env.NEXT_PUBLIC_SOLANA_NETWORK || 'devnet')}`}
+                              href={`https://solscan.io/account/${holder.address}${process.env.NEXT_PUBLIC_SOLANA_NETWORK === 'mainnet-beta' ? '' : '?cluster=' + (process.env.NEXT_PUBLIC_SOLANA_NETWORK || 'devnet')}`}
                               target="_blank"
                               rel="noopener noreferrer"
                               className="text-gray-300 hover:text-cyan-400 font-mono text-sm truncate hover:underline"

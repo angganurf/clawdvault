@@ -239,7 +239,7 @@ curl -X POST https://clawdvault.com/api/token/execute-create \
   "token": { ... },
   "signature": "5xyz...",
   "mint": "7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU",
-  "explorer": "https://explorer.solana.com/tx/5xyz..."
+  "explorer": "https://solscan.io/tx/5xyz..."
 }
 ```
 
@@ -416,7 +416,7 @@ curl -X POST https://clawdvault.com/api/trade/execute \
 {
   "success": true,
   "signature": "5xyz...",
-  "explorer": "https://explorer.solana.com/tx/5xyz...",
+  "explorer": "https://solscan.io/tx/5xyz...",
   "slot": 123456789,
   "blockTime": 1706886400
 }

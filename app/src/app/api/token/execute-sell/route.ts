@@ -110,7 +110,7 @@ export async function POST(request: Request) {
         tokenAmount: body.tokenAmount,
         pricePerToken,
       },
-      explorer: `https://explorer.solana.com/tx/${signature}?cluster=${
+      explorer: `https://solscan.io/tx/${signature}?cluster=${
         process.env.SOLANA_NETWORK || 'devnet'
       }`,
     });
