@@ -1,11 +1,14 @@
 /**
- * Completely rebuild candle data from trades (all intervals)
+ * Rebuild candles from all trades
  */
-
 import { PrismaClient } from '@prisma/client';
+import { Decimal } from '@prisma/client/runtime/library';
 
-const INTERVALS = ['1m', '5m', '15m', '1h', '1d'] as const;
-const INTERVAL_MS: Record<string, number> = {
+const prisma = new PrismaClient();
+
+type CandleInterval = '1m' | '5m' | '15m' | '1h' | '1d';
+
+const INTERVAL_MS: Record<CandleInterval, number> = {
   '1m': 60 * 1000,
   '5m': 5 * 60 * 1000,
   '15m': 15 * 60 * 1000,
@@ -13,90 +16,97 @@ const INTERVAL_MS: Record<string, number> = {
   '1d': 24 * 60 * 60 * 1000,
 };
 
-function getBucketTime(timestamp: Date, interval: string): Date {
+function getBucketTime(timestamp: Date, interval: CandleInterval): Date {
   const ms = INTERVAL_MS[interval];
   const bucketMs = Math.floor(timestamp.getTime() / ms) * ms;
   return new Date(bucketMs);
 }
 
-async function main() {
-  const prisma = new PrismaClient();
-
-  console.log('🕯️ Rebuilding all candle data...\n');
-
-  const deleted = await prisma.priceCandle.deleteMany({});
-  console.log(`Deleted ${deleted.count} existing candles\n`);
-
-  const tokens = await prisma.token.findMany();
+async function updateCandles(
+  tokenMint: string,
+  price: number | Decimal,
+  solVolume: number | Decimal,
+  timestamp: Date
+): Promise<void> {
+  const priceDecimal = new Decimal(price.toString());
+  const volumeDecimal = new Decimal(solVolume.toString());
   
-  for (const token of tokens) {
-    console.log(`\n${token.symbol}:`);
+  const intervals: CandleInterval[] = ['1m', '5m', '15m', '1h', '1d'];
+  
+  await Promise.all(intervals.map(async (interval) => {
+    const bucketTime = getBucketTime(timestamp, interval);
     
-    const virtualSol = Number(token.virtualSolReserves);
-    const virtualTokens = Number(token.virtualTokenReserves);
-    const currentPrice = virtualSol / virtualTokens;
-    
-    const trades = await prisma.trade.findMany({
-      where: { tokenMint: token.mint },
-      orderBy: { createdAt: 'asc' },
+    const existing = await prisma.priceCandle.findUnique({
+      where: {
+        tokenMint_interval_bucketTime: {
+          tokenMint,
+          interval,
+          bucketTime,
+        },
+      },
     });
     
-    console.log(`  ${trades.length} trades, price: ${currentPrice.toFixed(12)}`);
-    
-    let totalCandles = 0;
-    
-    for (const interval of INTERVALS) {
-      const candleMap = new Map<string, any>();
-      
-      for (const trade of trades) {
-        const price = Number(trade.priceSol);
-        const volume = Number(trade.solAmount);
-        const bucket = getBucketTime(trade.createdAt, interval);
-        const key = bucket.toISOString();
-        
-        const existing = candleMap.get(key);
-        if (existing) {
-          existing.high = Math.max(existing.high, price);
-          existing.low = Math.min(existing.low, price);
-          existing.close = price;
-          existing.volume += volume;
-          existing.trades += 1;
-        } else {
-          candleMap.set(key, {
-            open: price, high: price, low: price, close: price,
-            volume, trades: 1, bucket,
-          });
-        }
-      }
-      
-      // If no trades, create one candle at current price
-      if (candleMap.size === 0) {
-        const bucket = getBucketTime(new Date(), interval);
-        candleMap.set(bucket.toISOString(), {
-          open: currentPrice, high: currentPrice, low: currentPrice, close: currentPrice,
-          volume: 0, trades: 0, bucket,
-        });
-      }
-      
-      // Insert candles
-      for (const c of Array.from(candleMap.values())) {
-        await prisma.priceCandle.create({
-          data: {
-            tokenMint: token.mint,
+    if (existing) {
+      await prisma.priceCandle.update({
+        where: {
+          tokenMint_interval_bucketTime: {
+            tokenMint,
             interval,
-            bucketTime: c.bucket,
-            open: c.open, high: c.high, low: c.low, close: c.close,
-            volume: c.volume, trades: c.trades,
+            bucketTime,
           },
-        });
-        totalCandles++;
-      }
+        },
+        data: {
+          high: priceDecimal.greaterThan(existing.high) ? priceDecimal : existing.high,
+          low: priceDecimal.lessThan(existing.low) ? priceDecimal : existing.low,
+          close: priceDecimal,
+          volume: existing.volume.add(volumeDecimal),
+          trades: { increment: 1 },
+        },
+      });
+    } else {
+      await prisma.priceCandle.create({
+        data: {
+          tokenMint,
+          interval,
+          bucketTime,
+          open: priceDecimal,
+          high: priceDecimal,
+          low: priceDecimal,
+          close: priceDecimal,
+          volume: volumeDecimal,
+          trades: 1,
+        },
+      });
     }
-    
-    console.log(`  ✅ Created ${totalCandles} candles`);
-  }
+  }));
+}
 
-  console.log('\n🕯️ Done!');
+async function main() {
+  // Clear existing candles
+  console.log('Clearing existing candles...');
+  await prisma.priceCandle.deleteMany({});
+  
+  // Get all trades ordered by time
+  const trades = await prisma.trade.findMany({
+    orderBy: { createdAt: 'asc' },
+  });
+  
+  console.log(`Rebuilding candles for ${trades.length} trades...\n`);
+  
+  for (const trade of trades) {
+    console.log(`  ${trade.tokenMint.slice(0,8)}... ${Number(trade.solAmount).toFixed(2)} SOL @ ${trade.createdAt.toISOString().slice(0,16)}`);
+    await updateCandles(
+      trade.tokenMint,
+      trade.priceSol,
+      trade.solAmount,
+      trade.createdAt
+    );
+  }
+  
+  // Count candles
+  const count = await prisma.priceCandle.count();
+  console.log(`\n✅ Created ${count} candles!`);
+  
   await prisma.$disconnect();
 }
 

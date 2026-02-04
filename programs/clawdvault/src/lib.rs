@@ -344,6 +344,23 @@ pub mod clawdvault {
             
             msg!("🎯 Initial buy: {} lamports -> {} tokens (fee: {} lamports)", 
                 initial_buy_lamports, tokens_out, total_fee);
+            
+            // Emit TradeEvent for initial buy (so sync-trades catches it!)
+            let protocol_fee = total_fee / 2;
+            let creator_fee = total_fee - protocol_fee; // Remainder to avoid rounding loss
+            
+            emit!(TradeEvent {
+                mint: mint_key,
+                trader: creator_key,
+                is_buy: true,
+                sol_amount: initial_buy_lamports,
+                token_amount: tokens_out,
+                protocol_fee,
+                creator_fee,
+                virtual_sol_reserves: new_virtual_sol,
+                virtual_token_reserves: new_virtual_tokens,
+                timestamp: Clock::get()?.unix_timestamp,
+            });
         }
         
         msg!("Initial price: {} lamports/token", 

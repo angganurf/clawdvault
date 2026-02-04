@@ -1,63 +1,53 @@
-/**
- * One-time script to sync all token reserves from on-chain
- * Run from app dir: npx ts-node scripts/sync-reserves.ts
- */
-
+import { Connection, PublicKey, LAMPORTS_PER_SOL } from '@solana/web3.js';
 import { PrismaClient } from '@prisma/client';
 
-const API_BASE = process.env.API_BASE || 'https://clawdvault.com';
+const PROGRAM_ID = new PublicKey('GUyF2TVe32Cid4iGVt2F6wPYDhLSVmTUZBj2974outYM');
+const TOKEN_DECIMALS = 6;
+const prisma = new PrismaClient();
 
 async function main() {
-  const prisma = new PrismaClient();
-
-  console.log('🦞 Syncing all token reserves from on-chain...\n');
-
+  const conn = new Connection(process.env.SOLANA_RPC_URL!, 'confirmed');
+  
   const tokens = await prisma.token.findMany({
-    where: { graduated: false },
+    select: { id: true, mint: true, name: true }
   });
-
-  console.log(`Found ${tokens.length} tokens to sync\n`);
-
-  let updated = 0;
-  let errors = 0;
-
+  
   for (const token of tokens) {
-    try {
-      await new Promise(resolve => setTimeout(resolve, 300));
-
-      // Use the existing stats API
-      const res = await fetch(`${API_BASE}/api/stats?mint=${token.mint}`);
-      const data = await res.json();
-
-      if (!data.success || !data.onChain) {
-        console.log(`⚠️ ${token.symbol}: No on-chain data`);
-        continue;
+    const [bondingCurve] = PublicKey.findProgramAddressSync(
+      [Buffer.from('bonding_curve'), new PublicKey(token.mint).toBuffer()],
+      PROGRAM_ID
+    );
+    
+    const account = await conn.getAccountInfo(bondingCurve);
+    if (!account) continue;
+    
+    const data = account.data;
+    let offset = 8 + 32 + 32;
+    
+    const virtualSol = Number(data.readBigUInt64LE(offset)) / LAMPORTS_PER_SOL;
+    offset += 8;
+    const virtualToken = Number(data.readBigUInt64LE(offset)) / Math.pow(10, TOKEN_DECIMALS);
+    offset += 8;
+    const realSol = Number(data.readBigUInt64LE(offset)) / LAMPORTS_PER_SOL;
+    offset += 8;
+    const realToken = Number(data.readBigUInt64LE(offset)) / Math.pow(10, TOKEN_DECIMALS);
+    
+    console.log(`${token.name}:`);
+    console.log(`  On-chain: vSol=${virtualSol.toFixed(4)} vTok=${virtualToken.toFixed(0)}`);
+    console.log(`            rSol=${realSol.toFixed(6)} rTok=${realToken.toFixed(0)}`);
+    
+    await prisma.token.update({
+      where: { id: token.id },
+      data: {
+        virtualSolReserves: virtualSol,
+        virtualTokenReserves: virtualToken,
+        realSolReserves: realSol,
+        realTokenReserves: realToken,
       }
-
-      const { virtualSolReserves, virtualTokenReserves } = data.onChain;
-      const dbVirtualSol = Number(token.virtualSolReserves);
-
-      if (Math.abs(virtualSolReserves - dbVirtualSol) > 0.0001) {
-        await prisma.token.update({
-          where: { mint: token.mint },
-          data: {
-            virtualSolReserves: virtualSolReserves,
-            virtualTokenReserves: virtualTokenReserves,
-          },
-        });
-        
-        console.log(`✅ ${token.symbol}: ${dbVirtualSol.toFixed(4)} → ${virtualSolReserves.toFixed(4)} SOL`);
-        updated++;
-      } else {
-        console.log(`✓ ${token.symbol}: Already in sync`);
-      }
-    } catch (err) {
-      console.error(`❌ ${token.symbol}: ${err}`);
-      errors++;
-    }
+    });
+    console.log(`  ✅ Updated!\n`);
   }
-
-  console.log(`\n🦞 Done! Updated: ${updated}, Errors: ${errors}`);
+  
   await prisma.$disconnect();
 }
 
