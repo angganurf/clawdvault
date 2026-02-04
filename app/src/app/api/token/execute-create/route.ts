@@ -122,10 +122,37 @@ export async function POST(request: Request) {
       });
     }
     
-    // Record initial buy as a trade if there was one
-    // IMPORTANT: Use recordTrade() to properly update token reserves!
+    // Verify and record initial buy from on-chain transaction (not from request body!)
     let initialBuyTrade = null;
-    if (body.initialBuy && body.initialBuy.solAmount > 0) {
+    let verifiedInitialBuy: { solAmount: number; tokenAmount: number } | null = null;
+    
+    try {
+      // Fetch the confirmed transaction to verify initial buy
+      const tx = await connection.getTransaction(signature, {
+        commitment: 'confirmed',
+        maxSupportedTransactionVersion: 0,
+      });
+      
+      if (tx?.meta?.logMessages) {
+        // Parse "🎯 Initial buy: X lamports -> Y tokens" from logs
+        for (const log of tx.meta.logMessages) {
+          const match = log.match(/Initial buy: (\d+) lamports -> (\d+) tokens/);
+          if (match) {
+            verifiedInitialBuy = {
+              solAmount: parseInt(match[1]) / 1e9, // lamports to SOL
+              tokenAmount: parseInt(match[2]) / 1e6, // raw to tokens (6 decimals)
+            };
+            console.log(`🔍 Verified initial buy from tx: ${verifiedInitialBuy.solAmount} SOL`);
+            break;
+          }
+        }
+      }
+    } catch (txErr) {
+      console.error('Warning: Failed to fetch transaction for verification:', txErr);
+    }
+    
+    // Record trade only with verified on-chain values
+    if (verifiedInitialBuy && verifiedInitialBuy.solAmount > 0) {
       try {
         const { recordTrade } = await import('@/lib/db');
         
@@ -133,15 +160,17 @@ export async function POST(request: Request) {
           mint: body.mint,
           type: 'buy',
           wallet: body.creator,
-          solAmount: body.initialBuy.solAmount,
-          tokenAmount: body.initialBuy.estimatedTokens,
+          solAmount: verifiedInitialBuy.solAmount,
+          tokenAmount: verifiedInitialBuy.tokenAmount,
           signature: signature,
         });
         
-        console.log(`📊 Initial buy trade recorded with reserves update: ${initialBuyTrade?.id}`);
+        console.log(`📊 Initial buy trade recorded (verified): ${initialBuyTrade?.id}`);
       } catch (tradeErr) {
         console.error('Warning: Failed to record initial buy trade:', tradeErr);
       }
+    } else if (body.initialBuy && body.initialBuy.solAmount > 0) {
+      console.warn(`⚠️ Initial buy claimed (${body.initialBuy.solAmount} SOL) but not verified on-chain!`);
     }
     
     return NextResponse.json({
@@ -151,8 +180,9 @@ export async function POST(request: Request) {
       mint: body.mint,
       initialBuyTrade: initialBuyTrade ? {
         id: initialBuyTrade.id,
-        solAmount: body.initialBuy?.solAmount,
-        tokenAmount: body.initialBuy?.estimatedTokens,
+        solAmount: verifiedInitialBuy?.solAmount,
+        tokenAmount: verifiedInitialBuy?.tokenAmount,
+        verified: true,
       } : null,
       explorer: `https://explorer.solana.com/tx/${signature}?cluster=${
         process.env.SOLANA_NETWORK || 'devnet'
