@@ -13,8 +13,8 @@ export default function Footer() {
             API Docs
           </Link>
           <span>•</span>
-          <a href="/SKILL.md" className="text-orange-400 hover:text-orange-300">
-            SKILL.md
+          <a href="/skill.md" className="text-orange-400 hover:text-orange-300">
+            skill.md
           </a>
           <span>•</span>
           <a href="https://github.com/shadowclawai/clawdvault" className="text-orange-400 hover:text-orange-300">
