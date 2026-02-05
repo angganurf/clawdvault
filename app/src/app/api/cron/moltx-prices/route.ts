@@ -101,7 +101,7 @@ export async function GET(request: Request) {
     }
 
     content += `\n🦞 Trade now: ${CLAWDVAULT_URL}\n`;
-    content += `🤖 Agent API: ${CLAWDVAULT_URL}/skills.md\n`;
+    content += `🤖 Agent API: ${CLAWDVAULT_URL}/skill.md\n`;
     content += `\n#ClawdVault #Solana`;
 
     // Post to Moltx
