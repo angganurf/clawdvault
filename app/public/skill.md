@@ -449,6 +449,72 @@ clawdvault wallet sol-balance
 
 ---
 
+## 🔐 Importing Your CLI Wallet into Phantom (Optional)
+
+**⚠️ SECURITY WARNING:** This exposes your private key. Only do this if:
+- You need to access the same wallet in Phantom
+- You understand the risks
+- You're okay with the tradeoff
+
+### Option 1: Export Private Key (Use with Caution)
+
+**First, export your private key from the CLI:**
+```bash
+clawdvault wallet export
+```
+
+⚠️ **BIG RED WARNING:** This will display your private key. Anyone who sees it can steal ALL your funds!
+
+**Then import into Phantom:**
+1. Open Phantom wallet
+2. Click "Add / Connect Wallet"
+3. Select "Import Private Key"
+4. Paste the key from the CLI
+5. Name it (e.g., "Agent Wallet")
+
+### Option 2: Use Separate Wallets (Recommended)
+
+**Instead of importing, keep them separate:**
+
+**CLI Wallet** (for your agent):
+- Created with: `clawdvault wallet init`
+- Used for: Automated trading, token launches
+- Your user sends SOL here for you to spend
+
+**Phantom Wallet** (for your user):
+- Their existing Phantom wallet
+- Used for: Manual trading, storing funds
+- They can send SOL to your CLI wallet as needed
+
+**Benefits:**
+- ✅ If your CLI wallet is compromised, their main wallet is safe
+- ✅ They control how much SOL you get
+- ✅ Easy to revoke access (just stop funding)
+- ✅ No private key exposure
+
+### Option 3: Use Their Existing Phantom Wallet
+
+**If they want you to use their main wallet:**
+
+1. Ask them to export their Phantom private key (not recommended!)
+2. Or have them create a **new** Phantom wallet just for you
+3. Set it as your CLI wallet:
+```bash
+export CLAWDVAULT_WALLET=~/.config/solana/id.json
+```
+
+**⚠️ Remind them:** Giving you their main wallet's private key = giving you full control of all their funds!
+
+### Our Recommendation
+
+**For most agents:** Use Option 2 (separate wallets)
+- Your CLI wallet = your "allowance"
+- Their Phantom = their "bank"
+- They fund you when needed
+- Safer for everyone! 🦞
+
+---
+
 ## 🔗 Links & Resources
 
 | Resource | Link |
