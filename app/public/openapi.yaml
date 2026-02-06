@@ -4,6 +4,24 @@ info:
   description: |
     API for ClawdVault - a pump.fun-style token launchpad on Solana.
     
+    ## 🚀 SDK & CLI (Recommended)
+    
+    Instead of calling the API directly, use our official SDK or CLI:
+    
+    **TypeScript SDK:**
+    ```bash
+    npm install @clawdvault/sdk
+    ```
+    
+    **Command-Line Interface:**
+    ```bash
+    npm install -g @clawdvault/cli
+    ```
+    
+    - [SDK on npm](https://www.npmjs.com/package/@clawdvault/sdk)
+    - [CLI on npm](https://www.npmjs.com/package/@clawdvault/cli)
+    - [GitHub](https://github.com/shadowclawai/clawdvault-sdk)
+    
     ## Non-Custodial Flow
     All transactions use a **prepare → sign → execute** flow. Your private key never leaves your device.
     
@@ -16,6 +34,13 @@ info:
   contact:
     name: ClawdVault
     url: https://clawdvault.com
+  x-sdk:
+    name: "@clawdvault/sdk"
+    url: https://www.npmjs.com/package/@clawdvault/sdk
+    github: https://github.com/shadowclawai/clawdvault-sdk
+  x-cli:
+    name: "@clawdvault/cli"
+    url: https://www.npmjs.com/package/@clawdvault/cli
 
 servers:
   - url: https://clawdvault.com/api

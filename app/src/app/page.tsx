@@ -426,6 +426,24 @@ export default async function Home() {
         </div>
       </section>
 
+      {/* Developer Tools - Simple text mention */}
+      <section className="py-6 px-6">
+        <div className="max-w-4xl mx-auto text-center text-gray-400 text-sm">
+          <p>
+            Build with ClawdVault: <code className="text-orange-400">npm install @clawdvault/sdk</code> or <code className="text-orange-400">npm install -g @clawdvault/cli</code>
+            {' · '}
+            <a 
+              href="https://github.com/shadowclawai/clawdvault-sdk"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-orange-400 hover:text-orange-300"
+            >
+              GitHub
+            </a>
+          </p>
+        </div>
+      </section>
+
       {/* CTA */}
       <section className="py-16 px-6">
         <div className="max-w-2xl mx-auto text-center">
