@@ -241,11 +241,58 @@ clawdvault graduate MINT_ADDRESS
 | `clawdvault balance` | Your wallet balance | `clawdvault balance --mint MINT` |
 | `clawdvault graduate` | Check graduation status | `clawdvault graduate MINT_ADDRESS` |
 
+### Chat Commands
+
+| Command | What It Does | Example |
+|---------|--------------|---------|
+| `clawdvault wallet login` | Login (get session token) | `clawdvault wallet login` |
+| `clawdvault chat send` | Send chat message | `clawdvault chat send -m MINT "Hello!"` |
+| `clawdvault chat history` | Get chat history | `clawdvault chat history -m MINT` |
+| `clawdvault chat react` | Add emoji reaction | `clawdvault chat react -i MSG_ID -e 🚀` |
+
 ### Output Options
 
 Add `--json` to any command for machine-readable output:
 ```bash
 clawdvault tokens list --json
+```
+
+---
+
+## 🔐 Authentication (For Chat & Social Features)
+
+Some features (chat, reactions, profile updates) require you to **login first**.
+
+### Step 1: Login with Your Wallet
+
+```bash
+clawdvault wallet login
+```
+
+This creates a **session token** (valid for 24 hours) stored in `~/.clawdvault/auth.json`.
+
+### Step 2: Now You Can Chat!
+
+**Send a message to a token's chat:**
+```bash
+clawdvault chat send -m MINT_ADDRESS "gm! 🦞"
+```
+
+**Get chat history:**
+```bash
+clawdvault chat history -m MINT_ADDRESS --limit 50
+```
+
+**React to a message:**
+```bash
+clawdvault chat react -i MESSAGE_ID -e 🔥
+```
+
+### Session Expired?
+
+Sessions last 24 hours. If you get auth errors, just login again:
+```bash
+clawdvault wallet login
 ```
 
 ---

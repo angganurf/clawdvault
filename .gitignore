@@ -13,3 +13,5 @@ node_modules/
 *.dylib
 .env
 .env.local
+.vercel
+.env*.local
