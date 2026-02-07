@@ -10,7 +10,7 @@ import Footer from '@/components/Footer';
 import ExplorerLink from '@/components/ExplorerLink';
 import { useWallet } from '@/contexts/WalletContext';
 import { fetchBalanceClient } from '@/lib/solana-client';
-import { subscribeToTokenStats, unsubscribeChannel } from '@/lib/supabase-client';
+import { subscribeToTokenStats, subscribeToCandles, unsubscribeChannel } from '@/lib/supabase-client';
 import { useSolPrice } from '@/hooks/useSolPrice';
 
 export default function TokenPage({ params }: { params: Promise<{ mint: string }> }) {
@@ -49,19 +49,38 @@ export default function TokenPage({ params }: { params: Promise<{ mint: string }
   } | null>(null);
   const [candleMarketCap, setCandleMarketCap] = useState<number>(0);
   const [creatorUsername, setCreatorUsername] = useState<string | null>(null);
+  const [candle24hAgo, setCandle24hAgo] = useState<{ closeUsd: number } | null>(null);
+  const [lastCandle, setLastCandle] = useState<{ closeUsd: number; close: number } | null>(null);
+
+  // Calculate 24h price change from streamed candles (frontend calculation)
+  const priceChange24h = useMemo(() => {
+    if (lastCandle?.closeUsd && candle24hAgo?.closeUsd && candle24hAgo.closeUsd > 0) {
+      const change = ((lastCandle.closeUsd - candle24hAgo.closeUsd) / candle24hAgo.closeUsd) * 100;
+      return Number(change.toFixed(2));
+    }
+    // Fallback to API value if candles not available
+    return token?.price_change_24h ?? null;
+  }, [lastCandle, candle24hAgo, token?.price_change_24h]);
 
   // Effective market cap: on-chain initially, then candles after first update
   // Candles include heartbeat candles, so they stay updated with current SOL price
-  const displayMarketCap = candleMarketCap > 0 ? candleMarketCap : (onChainStats?.marketCapUsd ?? 0);
+  const displayMarketCap = candleMarketCap > 0 ? candleMarketCap : (token?.market_cap_usd ?? onChainStats?.marketCapUsd ?? 0);
 
-  // Current price from last candle (includes heartbeat candles for USD continuity)
+  // Current price from streamed last candle (realtime updates)
   const currentPrice = useMemo(() => {
-    // Return on-chain stats which now come from last candle via API
+    // Prefer streamed last candle for realtime updates
+    if (lastCandle) {
+      return {
+        sol: lastCandle.close,
+        usd: lastCandle.closeUsd,
+      };
+    }
+    // Fallback to API data
     return {
-      sol: onChainStats?.price ?? 0,
-      usd: onChainStats?.priceUsd ?? null,
+      sol: token?.price_sol ?? onChainStats?.price ?? 0,
+      usd: token?.price_usd ?? onChainStats?.priceUsd ?? null,
     };
-  }, [onChainStats]);
+  }, [lastCandle, token, onChainStats]);
 
   // Fetch token holdings for connected wallet (client-side RPC)
   const fetchTokenBalance = useCallback(async () => {
@@ -136,7 +155,9 @@ export default function TokenPage({ params }: { params: Promise<{ mint: string }
     fetchSolPrice();
     fetchNetworkMode();
     fetchOnChainStats();
-    
+    fetchLatestCandle(); // Get initial last candle
+    fetch24hAgoCandle(); // Get initial 24h ago candle
+
     // Subscribe to realtime token stats updates
     const tokenChannel = subscribeToTokenStats(mint, (updatedToken) => {
       // Update token state with new reserves/stats
@@ -152,10 +173,24 @@ export default function TokenPage({ params }: { params: Promise<{ mint: string }
       // Also refresh on-chain stats
       fetchOnChainStats();
     });
-    
+
+    // Subscribe to realtime candle updates for last candle
+    const candleChannel = subscribeToCandles(mint, () => {
+      // Refetch latest candle when new candle is created
+      fetchLatestCandle();
+    });
+
     return () => {
       unsubscribeChannel(tokenChannel);
+      unsubscribeChannel(candleChannel);
     };
+  }, [mint]);
+
+  // Poll for 24h ago candle every minute (last candle comes from realtime)
+  useEffect(() => {
+    fetch24hAgoCandle();
+    const interval = setInterval(fetch24hAgoCandle, 60 * 1000);
+    return () => clearInterval(interval);
   }, [mint]);
 
   // Refetch holders when token loads (to pass creator for labeling)
@@ -202,6 +237,42 @@ export default function TokenPage({ params }: { params: Promise<{ mint: string }
       }
     } catch (err) {
       console.warn('On-chain stats fetch failed');
+    }
+  };
+
+  // Fetch 24h ago candle for change calculation (last candle comes from realtime)
+  const fetch24hAgoCandle = async () => {
+    try {
+      const now = new Date();
+      const oneDayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+
+      // Fetch most recent candle at or before 24h ago
+      const agoRes = await fetch(`/api/candles?mint=${mint}&interval=1m&limit=1&currency=usd&to=${oneDayAgo.toISOString()}`);
+      const agoData = await agoRes.json();
+      console.log('[TokenPage] Fetched 24h ago candle:', agoData.candles?.[0]);
+      if (agoData.candles?.length > 0) {
+        setCandle24hAgo({ closeUsd: agoData.candles[0].close });
+      }
+    } catch (err) {
+      console.warn('Failed to fetch 24h ago candle:', err);
+    }
+  };
+
+  // Fetch latest candle on mount (before realtime kicks in)
+  const fetchLatestCandle = async () => {
+    try {
+      const res = await fetch(`/api/candles?mint=${mint}&interval=1m&limit=1&currency=usd`);
+      const data = await res.json();
+      if (data.candles?.length > 0) {
+        const candle = data.candles[0];
+        setLastCandle({
+          closeUsd: candle.close,
+          close: candle.closeSol || candle.close
+        });
+        console.log('[TokenPage] Latest candle fetched:', { closeUsd: candle.close, close: candle.closeSol || candle.close });
+      }
+    } catch (err) {
+      console.warn('Failed to fetch latest candle:', err);
     }
   };
 
@@ -722,15 +793,16 @@ export default function TokenPage({ params }: { params: Promise<{ mint: string }
             
             {/* Chart - order-1 mobile, spans 2 cols on desktop */}
             <div className="order-1 lg:order-none lg:col-span-2 min-w-0">
-              <PriceChart 
+              <PriceChart
                 key={chartKey}
-                mint={token.mint} 
+                mint={token.mint}
                 height={500}
-                currentMarketCap={onChainStats?.marketCapUsd ?? 0}
-                marketCapSol={onChainStats?.marketCap ?? 0}
-                marketCapUsd={onChainStats?.marketCapUsd ?? null}
+                currentMarketCap={token?.market_cap_usd ?? onChainStats?.marketCapUsd ?? 0}
+                marketCapSol={token?.market_cap_sol ?? onChainStats?.marketCap ?? 0}
+                marketCapUsd={token?.market_cap_usd ?? onChainStats?.marketCapUsd ?? null}
                 volume24h={token.volume_24h || 0}
                 holders={holders.length > 0 ? holders.length : (token.holders || 0)}
+                priceChange24h={priceChange24h}
                 onMarketCapUpdate={setCandleMarketCap}
               />
             </div>
@@ -868,6 +940,14 @@ export default function TokenPage({ params }: { params: Promise<{ mint: string }
                     <span className="text-gray-400">USD</span>
                     <span className="text-green-400 font-mono">
                       ${(currentPrice?.usd ?? onChainStats?.priceUsd ?? 0).toFixed((currentPrice?.usd ?? onChainStats?.priceUsd ?? 0) < 0.01 ? 8 : 4)}
+                    </span>
+                  </div>
+                )}
+                {priceChange24h !== null && priceChange24h !== undefined && (
+                  <div className="flex justify-between text-sm mt-1">
+                    <span className="text-gray-400">24h Change</span>
+                    <span className={`font-mono ${priceChange24h >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                      {priceChange24h >= 0 ? '+' : ''}{priceChange24h.toFixed(2)}%
                     </span>
                   </div>
                 )}
