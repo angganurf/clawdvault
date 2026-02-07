@@ -1,10 +1,7 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "git": {
-    "deploymentEnabled": {
-      "main": false,
-      "preview": false
-    }
+    "deploymentEnabled": false
   },
   "crons": [
     {
@@ -24,8 +21,8 @@
       "schedule": "15,45 * * * *"
     },
     {
-      "path": "/api/cron/heartbeat-candles",
-      "schedule": "*/5 * * * *"
+      "path": "/api/cron/update-sol-price",
+      "schedule": "* * * * *"
     }
   ]
 }
