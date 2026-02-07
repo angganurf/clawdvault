@@ -244,6 +244,8 @@ export async function getTokenTrades(mint: string, limit = 50): Promise<Trade[]>
     sol_amount: Number(t.solAmount),
     token_amount: Number(t.tokenAmount),
     price_sol: Number(t.priceSol),
+    sol_price_usd: t.solPriceUsd != null ? Number(t.solPriceUsd) : undefined,
+    price_usd: t.solPriceUsd != null ? Number(t.priceSol) * Number(t.solPriceUsd) : undefined,
     signature: t.signature || '',
     created_at: t.createdAt.toISOString(),
     // Also include camelCase versions for component compatibility
