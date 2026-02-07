@@ -39,14 +39,27 @@ export default function TokenPage({ params }: { params: Promise<{ mint: string }
   const [circulatingSupply, setCirculatingSupply] = useState<number>(0);
   const [onChainStats, setOnChainStats] = useState<{
     marketCap: number;
+    marketCapUsd?: number;
     price: number;
+    priceUsd?: number;
+    solPriceUsd?: number;
     bondingCurveSol: number;
   } | null>(null);
-  const [candlePrice, setCandlePrice] = useState<number>(0);
+  const [candleMarketCap, setCandleMarketCap] = useState<number>(0);
   const [creatorUsername, setCreatorUsername] = useState<string | null>(null);
 
-  // Effective price: on-chain initially, then candles after first update
-  const displayPrice = candlePrice > 0 ? candlePrice : (onChainStats?.price ?? 0);
+  // Effective market cap: on-chain initially, then candles after first update
+  // Candles include heartbeat candles, so they stay updated with current SOL price
+  const displayMarketCap = candleMarketCap > 0 ? candleMarketCap : (onChainStats?.marketCapUsd ?? 0);
+
+  // Current price from last candle (includes heartbeat candles for USD continuity)
+  const currentPrice = useMemo(() => {
+    // Return on-chain stats which now come from last candle via API
+    return {
+      sol: onChainStats?.price ?? 0,
+      usd: onChainStats?.priceUsd ?? null,
+    };
+  }, [onChainStats]);
 
   // Fetch token holdings for connected wallet (client-side RPC)
   const fetchTokenBalance = useCallback(async () => {
@@ -154,7 +167,10 @@ export default function TokenPage({ params }: { params: Promise<{ mint: string }
       if (data.success && data.onChain) {
         setOnChainStats({
           marketCap: data.onChain.marketCap,
+          marketCapUsd: data.onChain.marketCapUsd,
           price: data.onChain.price,
+          priceUsd: data.onChain.priceUsd,
+          solPriceUsd: data.onChain.solPriceUsd,
           bondingCurveSol: data.onChain.bondingCurveSol,
         });
       }
@@ -254,21 +270,22 @@ export default function TokenPage({ params }: { params: Promise<{ mint: string }
     }
   }, [token, amount, tradeType]);
 
-  // Calculate price impact using display price (on-chain → candles)
+  // Calculate price impact using current price from candles
   const priceImpact = useMemo(() => {
-    if (!token || !amount || parseFloat(amount) <= 0 || displayPrice <= 0) return 0;
+    const price = currentPrice?.sol ?? onChainStats?.price ?? 0;
+    if (!token || !amount || parseFloat(amount) <= 0 || price <= 0) return 0;
     const inputAmount = parseFloat(amount);
-    
+
     if (tradeType === 'buy') {
-      const expectedTokens = inputAmount / displayPrice;
+      const expectedTokens = inputAmount / price;
       const actualTokens = estimatedOutput?.tokens || 0;
       return ((expectedTokens - actualTokens) / expectedTokens) * 100;
     } else {
-      const expectedSol = inputAmount * displayPrice;
+      const expectedSol = inputAmount * price;
       const actualSol = estimatedOutput?.sol || 0;
       return ((expectedSol - actualSol) / expectedSol) * 100;
     }
-  }, [token, amount, tradeType, estimatedOutput, displayPrice]);
+  }, [token, amount, tradeType, estimatedOutput, currentPrice?.sol, onChainStats?.price]);
 
   // Contract now caps sells at available liquidity, so max is just token balance
   const maxSellableTokens = tokenBalance;
@@ -509,8 +526,8 @@ export default function TokenPage({ params }: { params: Promise<{ mint: string }
   };
 
   const formatValue = (solAmount: number) => {
-    if (solPrice !== null) {
-      return formatUsd(solAmount * solPrice);
+    if (onChainStats?.solPriceUsd) {
+      return formatUsd(solAmount * onChainStats.solPriceUsd);
     }
     return formatSol(solAmount);
   };
@@ -683,13 +700,12 @@ export default function TokenPage({ params }: { params: Promise<{ mint: string }
                 key={chartKey}
                 mint={token.mint} 
                 height={500}
-                currentPrice={onChainStats?.price ?? 0}
+                currentMarketCap={onChainStats?.marketCapUsd ?? 0}
                 marketCapSol={onChainStats?.marketCap ?? 0}
-                marketCapUsd={solPrice && onChainStats?.marketCap ? onChainStats.marketCap * solPrice : null}
+                marketCapUsd={onChainStats?.marketCapUsd ?? null}
                 volume24h={token.volume_24h || 0}
-                solPrice={solPrice}
                 holders={holders.length > 0 ? holders.length : (token.holders || 0)}
-                onPriceUpdate={setCandlePrice}
+                onMarketCapUpdate={setCandleMarketCap}
               />
             </div>
 
@@ -813,19 +829,19 @@ export default function TokenPage({ params }: { params: Promise<{ mint: string }
               <div className="bg-gray-800/50 rounded-xl p-6 h-fit lg:sticky lg:top-6">
               <h3 className="text-white font-semibold mb-4">Trade</h3>
 
-              {/* Token Price (on-chain initially, then candles after trades) */}
+              {/* Token Price from last trade (streamed realtime) */}
               <div className="bg-gray-700/50 rounded-lg p-3 mb-4">
                 <div className="flex justify-between text-sm">
                   <span className="text-gray-400">Price</span>
                   <span className="text-white font-mono">
-                    {displayPrice > 0 ? formatPrice(displayPrice) : '--'} SOL
+                    {currentPrice?.sol ? formatPrice(currentPrice.sol) : (onChainStats?.price ? formatPrice(onChainStats.price) : '--')} SOL
                   </span>
                 </div>
-                {solPrice && displayPrice > 0 && (
+                {(currentPrice?.usd || onChainStats?.priceUsd) && (
                   <div className="flex justify-between text-sm mt-1">
                     <span className="text-gray-400">USD</span>
                     <span className="text-green-400 font-mono">
-                      ${(displayPrice * solPrice).toFixed(displayPrice * solPrice < 0.01 ? 8 : 4)}
+                      ${(currentPrice?.usd ?? onChainStats?.priceUsd ?? 0).toFixed((currentPrice?.usd ?? onChainStats?.priceUsd ?? 0) < 0.01 ? 8 : 4)}
                     </span>
                   </div>
                 )}
