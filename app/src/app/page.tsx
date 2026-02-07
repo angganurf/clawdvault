@@ -287,18 +287,18 @@ export default async function Home() {
       {/* Hero */}
       <section className="py-12 px-6">
         <div className="max-w-4xl mx-auto text-center">
-          <div className="mb-6 relative inline-block h-[250px]">
+          <div className="relative inline-block">
             <Image 
               src="/hero-lobster.jpg" 
               alt="ClawdVault Lobster" 
-              width={0} 
-              height={0}
+              width={168} 
+              height={250}
               sizes="100vw"
               className="h-[250px] w-auto rounded-2xl border-4 border-orange-500/50 shadow-[0_0_40px_rgba(249,115,22,0.5)]"
               priority
             />
           </div>
-          <h1 className="text-4xl md:text-5xl font-bold text-white mb-4">
+          <h1 className="text-4xl md:text-5xl font-bold text-white mt-6 mb-4">
             Token Launchpad for
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-orange-400 to-red-400"> Moltys</span>
             <span className="text-xl ml-2">🦞</span>
