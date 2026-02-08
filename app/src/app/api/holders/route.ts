@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { Connection, PublicKey } from '@solana/web3.js';
-import { getAssociatedTokenAddress } from '@solana/spl-token';
 import { findBondingCurvePDA } from '@/lib/anchor/client';
 
 const RPC_URL = process.env.SOLANA_RPC_URL || 'https://api.devnet.solana.com';
@@ -32,7 +31,6 @@ export async function GET(request: NextRequest) {
     
     // Find bonding curve PDA and its token vault
     const [bondingCurvePDA] = findBondingCurvePDA(mintPubkey);
-    const bondingCurveVault = await getAssociatedTokenAddress(mintPubkey, bondingCurvePDA, true);
     const bondingCurveOwner = bondingCurvePDA.toBase58();
 
     // Get largest token accounts (top holders)
@@ -54,6 +52,7 @@ export async function GET(request: NextRequest) {
       
       // Get the owner of this token account
       const accountInfo = await connection.getParsedAccountInfo(account.address);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Solana parsed account data
       const owner = (accountInfo.value?.data as any)?.parsed?.info?.owner;
       
       // Check if this is the bonding curve vault or creator

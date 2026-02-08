@@ -18,46 +18,11 @@ function calculatePrice(virtualSol: number, virtualTokens: number): number {
   return virtualSol / virtualTokens;
 }
 
-// Calculate market cap
-function calculateMarketCap(virtualSol: number, virtualTokens: number): number {
-  return calculatePrice(virtualSol, virtualTokens) * INITIAL_VIRTUAL_TOKENS;
-}
 
-// Get 24h price change from candle data (using USD candles)
-async function get24hPriceChange(tokenMint: string, currentPriceUsd: number): Promise<number | null> {
-  try {
-    // Get candle from ~24h ago
-    const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
-    
-    // Find the closest candle to 24h ago (using 1h interval for better coverage)
-    const candle24hAgo = await db().priceCandle.findFirst({
-      where: {
-        tokenMint,
-        interval: '1h',
-        bucketTime: { lte: oneDayAgo }
-      },
-      orderBy: { bucketTime: 'desc' },
-      select: { closeUsd: true }
-    });
-    
-    if (!candle24hAgo || !candle24hAgo.closeUsd) {
-      return null;
-    }
-    
-    const price24hAgo = Number(candle24hAgo.closeUsd);
-    if (price24hAgo === 0) return null;
-    
-    // Calculate percentage change based on USD prices
-    const change = ((currentPriceUsd - price24hAgo) / price24hAgo) * 100;
-    return change;
-  } catch (error) {
-    console.warn(`Failed to get 24h price change for ${tokenMint}:`, error);
-    return null;
-  }
-}
 
 // Convert Prisma token to API token
 function toApiToken(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Prisma token
   token: any, 
   stats?: { volume24h?: number; trades24h?: number; holders?: number }, 
   lastCandle?: { closeUsd?: number | null; close?: number | null } | null,
@@ -117,7 +82,7 @@ export async function getAllTokens(options?: {
     where.graduated = graduated;
   }
   
-  let orderBy: Prisma.TokenOrderByWithRelationInput = { createdAt: 'desc' };
+  let orderBy: Prisma.TokenOrderByWithRelationInput;
   switch (sort) {
     case 'market_cap':
       orderBy = { virtualSolReserves: 'desc' };
