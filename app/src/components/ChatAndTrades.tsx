@@ -309,7 +309,7 @@ export default function ChatAndTrades({ mint, tokenSymbol, trades, onTradesUpdat
       const data = await res.json();
       
       if (data.success) {
-        setMessages(prev => [...prev, data.message]);
+        setMessages(prev => [data.message, ...prev]);
         setNewMessage('');
       } else {
         setError(data.error || 'Failed to send');
