@@ -34,27 +34,63 @@ export async function GET(request: Request) {
     // Find all active (non-graduated) tokens
     const tokens = await db().token.findMany({
       where: { graduated: false },
-      select: { mint: true, name: true, symbol: true }
+      select: { mint: true, name: true, symbol: true, ath: true, virtualSolReserves: true, virtualTokenReserves: true }
     });
 
     for (const token of tokens) {
       const tokenResults: string[] = [];
 
-      // Get last trade for this token
+      // Get current SOL price per token: last trade > last candle > bonding curve reserves
       const lastTrade = await db().trade.findFirst({
         where: { tokenMint: token.mint },
         orderBy: { createdAt: 'desc' },
-        select: {
-          priceSol: true,
-          solPriceUsd: true,
-          createdAt: true
-        }
+        select: { priceSol: true }
       });
 
-      if (!lastTrade) continue; // No trades yet, skip
+      let lastTradePriceSol: number;
+      if (lastTrade) {
+        lastTradePriceSol = Number(lastTrade.priceSol);
+      } else {
+        // No trades — get price from last candle or calculate from reserves
+        const lastCandle = await db().priceCandle.findFirst({
+          where: { tokenMint: token.mint },
+          orderBy: { bucketTime: 'desc' },
+          select: { close: true }
+        });
+        lastTradePriceSol = lastCandle?.close
+          ? Number(lastCandle.close)
+          : Number(token.virtualSolReserves) / Number(token.virtualTokenReserves);
+      }
 
-      const lastTradePriceSol = Number(lastTrade.priceSol);
       const currentPriceUsd = lastTradePriceSol * solPriceUsd;
+
+      // Update ATH if current price is higher
+      const currentAth = token.ath ? Number(token.ath) : 0;
+      if (currentPriceUsd > currentAth) {
+        await db().token.update({
+          where: { mint: token.mint },
+          data: { ath: currentPriceUsd }
+        });
+      }
+
+      // Store 24h-ago reference price (frontend calculates % change in realtime)
+      const dayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+      const candle24hAgo = await db().priceCandle.findFirst({
+        where: {
+          tokenMint: token.mint,
+          interval: '1m',
+          bucketTime: { lte: dayAgo }
+        },
+        orderBy: { bucketTime: 'desc' },
+        select: { closeUsd: true }
+      });
+
+      if (candle24hAgo?.closeUsd) {
+        await db().token.update({
+          where: { mint: token.mint },
+          data: { price24hAgo: Number(candle24hAgo.closeUsd) }
+        });
+      }
 
       // First, handle the 1m candle
       const oneMinBucket = getBucketTime(now, '1m');

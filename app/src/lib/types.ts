@@ -24,7 +24,9 @@ type TokenComputed = {
   volume_24h?: number;
   trades_24h?: number;
   holders?: number;
-  price_change_24h?: number | null;
+  price_change_24h?: number | null;  // Computed from price_24h_ago + current price (%)
+  ath?: number;  // All-time high price (USD)
+  price_24h_ago?: number;  // USD price 24h ago (for realtime % change calculation)
   last_trade_at?: string;
 };
 
