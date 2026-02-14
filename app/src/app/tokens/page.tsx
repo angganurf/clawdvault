@@ -7,6 +7,7 @@ import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import { useAllTokens } from '@/lib/supabase-client';
 import { useWallet } from '@/contexts/WalletContext';
+import { useSolPrice } from '@/hooks/useSolPrice';
 
 type FilterTab = 'all' | 'trending' | 'new' | 'near_grad' | 'graduated';
 
@@ -17,7 +18,7 @@ export default function TokensPage() {
   const [sort, setSort] = useState('created_at');
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState<FilterTab>('all');
-  const [solPrice, setSolPrice] = useState<number | null>(null);
+  const { price: solPrice } = useSolPrice();
   const [_walletBalances, setWalletBalances] = useState<Record<string, number>>({});
   const [_balancesLoading, setBalancesLoading] = useState(false);
 
@@ -41,7 +42,6 @@ export default function TokensPage() {
 
   useEffect(() => {
     fetchTokens();
-    fetchSolPrice();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sort]);
 
@@ -56,16 +56,6 @@ export default function TokensPage() {
   useEffect(() => {
     fetchWalletBalances();
   }, [fetchWalletBalances]);
-
-  const fetchSolPrice = async () => {
-    try {
-      const res = await fetch('/api/sol-price');
-      const data = await res.json();
-      setSolPrice(data.valid ? data.price : null);
-    } catch {
-      setSolPrice(null);
-    }
-  };
 
   const fetchTokens = async () => {
     try {
@@ -124,16 +114,8 @@ export default function TokensPage() {
       );
     }
 
-    if (sort === 'price_change') {
-      result = result.sort((a, b) => {
-        const changeA = a.price_change_24h ?? -Infinity;
-        const changeB = b.price_change_24h ?? -Infinity;
-        return changeB - changeA;
-      });
-    }
-
     return result;
-  }, [tokens, filter, search, sort]);
+  }, [tokens, filter, search]);
 
   const formatMcap = (mcapSol: number, mcapUsd?: number) => {
     if (mcapUsd !== undefined && mcapUsd !== null) {
