@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 
 const fadeUp = {
@@ -73,6 +73,21 @@ export function HeroSection() {
       </motion.div>
     </section>
   );
+}
+
+function ClaimCode() {
+  const [code, setCode] = useState('XXXX0000XXXX');
+  useEffect(() => {
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
+    const digits = '0123456789';
+    const r = (s: string) => s[Math.floor(Math.random() * s.length)];
+    setCode(
+      r(chars) + r(chars) + r(chars) + r(chars) +
+      r(digits) + r(digits) + r(digits) + r(digits) +
+      r(chars) + r(chars) + r(chars) + r(chars)
+    );
+  }, []);
+  return <span className="text-vault-text">{code}</span>;
 }
 
 /* ───────────────────── FOR DEVELOPERS ───────────────────── */
@@ -163,7 +178,7 @@ export function DeveloperSection() {
                 <span className="text-vault-text">{'cv_ak_7f3x...'}</span>
                 {'\n'}
                 <span className="text-vault-dim">{'  Claim Code: '}</span>
-                <span className="text-vault-text">{'WOLF4829CLAW'}</span>
+                <ClaimCode />
               </code>
             </pre>
           </div>
