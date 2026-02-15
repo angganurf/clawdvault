@@ -96,115 +96,7 @@ function RankBadge({ rank }: { rank: number }) {
   );
 }
 
-function PodiumCard({
-  rank,
-  name,
-  wallet,
-  avatar,
-  volume,
-  tokens,
-  fees,
-  twitter,
-  twitterVerified,
-  isAgent,
-}: {
-  rank: number;
-  name: string | null;
-  wallet: string;
-  avatar: string | null;
-  volume: number;
-  tokens: number;
-  fees: number;
-  twitter?: string | null;
-  twitterVerified?: boolean;
-  isAgent: boolean;
-}) {
-  const borderColor =
-    rank === 1
-      ? 'border-amber-500/20 hover:border-amber-500/40'
-      : rank === 2
-        ? 'border-slate-400/20 hover:border-slate-400/40'
-        : 'border-orange-600/20 hover:border-orange-600/40';
 
-  const glowColor =
-    rank === 1
-      ? 'shadow-[0_0_40px_-12px_rgba(245,158,11,0.15)]'
-      : rank === 2
-        ? 'shadow-[0_0_40px_-12px_rgba(148,163,184,0.1)]'
-        : 'shadow-[0_0_40px_-12px_rgba(234,88,12,0.1)]';
-
-  const rankLabel = rank === 1 ? '1st' : rank === 2 ? '2nd' : '3rd';
-  const rankLabelColor =
-    rank === 1 ? 'text-amber-400' : rank === 2 ? 'text-slate-300' : 'text-orange-400';
-  const rankBgColor =
-    rank === 1 ? 'bg-amber-500/10' : rank === 2 ? 'bg-slate-400/10' : 'bg-orange-600/10';
-
-  return (
-    <div
-      className={`group relative flex flex-col items-center rounded-xl border bg-white/[0.02] p-5 transition-all duration-200 hover:bg-white/[0.04] ${borderColor} ${glowColor}`}
-    >
-      {/* Rank label */}
-      <span className={`mb-3 rounded-full px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider ${rankLabelColor} ${rankBgColor}`}>
-        {rankLabel}
-      </span>
-
-      {/* Avatar */}
-      <Avatar src={avatar} fallback={name || wallet} size="lg" />
-
-      {/* Name */}
-      <h3 className="mt-3 text-sm font-semibold text-vault-text text-center truncate max-w-full">
-        {name || truncateWallet(wallet)}
-      </h3>
-
-      {/* Wallet */}
-      <a
-        href={`https://solscan.io/account/${wallet}`}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="mt-0.5 font-mono text-[11px] text-vault-dim hover:text-vault-accent transition-colors"
-      >
-        {truncateWallet(wallet)}
-      </a>
-
-      {/* Twitter */}
-      {isAgent && twitter && (
-        <a
-          href={`https://x.com/${twitter}`}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="mt-1 flex items-center gap-1 text-[11px] text-vault-muted hover:text-vault-accent transition-colors"
-        >
-          @{twitter}
-          {twitterVerified && (
-            <svg className="h-3 w-3 text-vault-accent" viewBox="0 0 20 20" fill="currentColor">
-              <path
-                fillRule="evenodd"
-                d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
-                clipRule="evenodd"
-              />
-            </svg>
-          )}
-        </a>
-      )}
-
-      {/* Stats */}
-      <div className="mt-4 flex w-full flex-col gap-2">
-        <div className="flex items-center justify-between">
-          <span className="text-[10px] uppercase tracking-wider text-vault-dim">Volume</span>
-          <span className="font-mono text-xs font-semibold text-vault-text">{formatUsd(volume)}</span>
-        </div>
-        <div className="flex items-center justify-between">
-          <span className="text-[10px] uppercase tracking-wider text-vault-dim">Tokens</span>
-          <span className="font-mono text-xs font-semibold text-vault-text">{tokens}</span>
-        </div>
-        <div className="flex items-center justify-between">
-          <span className="text-[10px] uppercase tracking-wider text-vault-dim">Fees</span>
-          <span className="font-mono text-xs font-semibold text-vault-text">{formatUsd(fees)}</span>
-        </div>
-      </div>
-    </div>
-  );
-}
 
 function TableRow({
   rank,
@@ -229,8 +121,17 @@ function TableRow({
   twitterVerified?: boolean;
   isAgent: boolean;
 }) {
+  const isTop3 = rank >= 1 && rank <= 3;
+  const accentStyles = isTop3
+    ? rank === 1
+      ? 'border-amber-500/20 bg-amber-500/[0.03] hover:border-amber-500/30 hover:bg-amber-500/[0.05] shadow-[inset_0_1px_0_0_rgba(245,158,11,0.06)]'
+      : rank === 2
+        ? 'border-slate-400/15 bg-slate-400/[0.02] hover:border-slate-400/25 hover:bg-slate-400/[0.04] shadow-[inset_0_1px_0_0_rgba(148,163,184,0.04)]'
+        : 'border-orange-600/15 bg-orange-600/[0.02] hover:border-orange-600/25 hover:bg-orange-600/[0.04] shadow-[inset_0_1px_0_0_rgba(234,88,12,0.04)]'
+    : 'border-transparent bg-white/[0.015] hover:border-white/[0.06] hover:bg-white/[0.03]';
+
   return (
-    <div className="group flex items-center gap-3 rounded-lg border border-transparent bg-white/[0.015] px-4 py-3 transition-all hover:border-white/[0.06] hover:bg-white/[0.03] sm:gap-4">
+    <div className={`group flex items-center gap-3 rounded-lg border px-4 py-3 transition-all sm:gap-4 ${accentStyles}`}>
       <RankBadge rank={rank} />
 
       <Avatar src={avatar} fallback={name || wallet} />
@@ -295,33 +196,10 @@ function TableRow({
   );
 }
 
-function SkeletonPodium() {
-  return (
-    <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-      {Array.from({ length: 3 }).map((_, i) => (
-        <div
-          key={i}
-          className="flex animate-pulse flex-col items-center rounded-xl border border-white/[0.06] bg-white/[0.02] p-5"
-        >
-          <div className="mb-3 h-4 w-8 rounded-full bg-white/[0.06]" />
-          <div className="h-14 w-14 rounded-full bg-white/[0.06]" />
-          <div className="mt-3 h-4 w-24 rounded bg-white/[0.06]" />
-          <div className="mt-1 h-3 w-16 rounded bg-white/[0.04]" />
-          <div className="mt-4 flex w-full flex-col gap-2">
-            <div className="h-3 w-full rounded bg-white/[0.04]" />
-            <div className="h-3 w-full rounded bg-white/[0.04]" />
-            <div className="h-3 w-full rounded bg-white/[0.04]" />
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-}
-
 function SkeletonRows() {
   return (
     <div className="flex flex-col gap-1">
-      {Array.from({ length: 6 }).map((_, i) => (
+      {Array.from({ length: 10 }).map((_, i) => (
         <div
           key={i}
           className="flex animate-pulse items-center gap-4 rounded-lg bg-white/[0.015] px-4 py-3"
@@ -379,8 +257,6 @@ export default function LeaderboardPage() {
   }, [tab, sortBy, page]);
 
   const currentEntries: (AgentEntry | UserEntry)[] = tab === 'agents' ? agents : users;
-  const topThree = page === 1 ? currentEntries.slice(0, 3) : [];
-  const rest = page === 1 ? currentEntries.slice(3) : currentEntries;
   const isEmpty = !loading && currentEntries.length === 0;
 
   const tabs: { id: Tab; label: string; icon: React.ReactNode }[] = [
@@ -465,10 +341,7 @@ export default function LeaderboardPage() {
 
           {/* Content */}
           {loading ? (
-            <div className="flex flex-col gap-8">
-              <SkeletonPodium />
-              <SkeletonRows />
-            </div>
+            <SkeletonRows />
           ) : isEmpty ? (
             <div className="flex flex-col items-center justify-center py-24">
               <div className="flex h-16 w-16 items-center justify-center rounded-full bg-white/[0.03] ring-1 ring-white/[0.06]">
@@ -487,16 +360,29 @@ export default function LeaderboardPage() {
             </div>
           ) : (
             <div className="flex flex-col gap-6">
-              {/* Top 3 Podium */}
-              {topThree.length > 0 && (
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-                  {topThree.map((entry, i) => {
+              {/* Table */}
+              <div>
+                {/* Column headers */}
+                <div className="mb-1 hidden items-center gap-4 px-4 py-2 text-[10px] uppercase tracking-wider text-vault-dim sm:flex">
+                  <span className="w-7" />
+                  <span className="w-9" />
+                  <span className="flex-1">
+                    {tab === 'agents' ? 'Agent' : 'User'}
+                  </span>
+                  <span className="w-24 text-right">Volume</span>
+                  <span className="w-16 text-right">Tokens</span>
+                  <span className="w-20 text-right">Fees</span>
+                </div>
+
+                <div className="flex flex-col gap-1">
+                  {currentEntries.map((entry, i) => {
+                    const rank = (page - 1) * perPage + i + 1;
                     const isAgent = tab === 'agents';
                     const agentEntry = isAgent ? (entry as AgentEntry) : null;
                     return (
-                      <PodiumCard
+                      <TableRow
                         key={entry.id}
-                        rank={i + 1}
+                        rank={rank}
                         name={entry.name}
                         wallet={entry.wallet}
                         avatar={entry.avatar}
@@ -510,47 +396,7 @@ export default function LeaderboardPage() {
                     );
                   })}
                 </div>
-              )}
-
-              {/* Table for remaining entries */}
-              {rest.length > 0 && (
-                <div>
-                  {/* Column headers */}
-                  <div className="mb-1 hidden items-center gap-4 px-4 py-2 text-[10px] uppercase tracking-wider text-vault-dim sm:flex">
-                    <span className="w-7" />
-                    <span className="w-9" />
-                    <span className="flex-1">
-                      {tab === 'agents' ? 'Agent' : 'User'}
-                    </span>
-                    <span className="w-24 text-right">Volume</span>
-                    <span className="w-16 text-right">Tokens</span>
-                    <span className="w-20 text-right">Fees</span>
-                  </div>
-
-                  <div className="flex flex-col gap-1">
-                    {rest.map((entry, i) => {
-                      const rank = page === 1 ? i + 4 : (page - 1) * perPage + i + 1;
-                      const isAgent = tab === 'agents';
-                      const agentEntry = isAgent ? (entry as AgentEntry) : null;
-                      return (
-                        <TableRow
-                          key={entry.id}
-                          rank={rank}
-                          name={entry.name}
-                          wallet={entry.wallet}
-                          avatar={entry.avatar}
-                          volume={Number(entry.total_volume)}
-                          tokens={entry.tokens_created}
-                          fees={Number(entry.total_fees)}
-                          twitter={agentEntry?.twitter_handle}
-                          twitterVerified={agentEntry?.twitter_verified}
-                          isAgent={isAgent}
-                        />
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
+              </div>
 
               {/* Result count */}
               <div className="flex items-center justify-between px-1">
