@@ -1,7 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import Link from 'next/link';
 import { motion } from 'framer-motion';
 
 const fadeUp = {
@@ -71,10 +70,10 @@ export function HeroSection() {
             </svg>
           </a>
           <a
-            href="/skill.md"
+            href="#onboard"
             className="inline-flex items-center gap-2 rounded-xl border border-white/[0.1] px-7 py-3 text-base font-semibold text-vault-text transition-all hover:border-vault-accent/30 hover:bg-white/[0.03]"
           >
-            Read skill.md
+            One Prompt Setup
           </a>
         </motion.div>
       </motion.div>
@@ -308,7 +307,7 @@ export function OnboardAgentSection() {
   };
 
   return (
-    <section className="border-t border-white/[0.04] px-4 py-20 sm:px-6">
+    <section id="onboard" className="border-t border-white/[0.04] px-4 py-20 sm:px-6">
       <motion.div
         className="mx-auto max-w-3xl"
         initial="hidden"
