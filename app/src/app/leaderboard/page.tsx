@@ -11,6 +11,7 @@ interface AgentEntry {
   id: string;
   wallet: string;
   name: string | null;
+  avatar: string | null;
   twitter_handle: string | null;
   twitter_verified: boolean;
   tokens_created: number;
@@ -22,6 +23,7 @@ interface UserEntry {
   id: string;
   wallet: string;
   name: string | null;
+  avatar: string | null;
   tokens_created: number;
   total_volume: number;
   total_fees: number;
@@ -179,6 +181,13 @@ export default function LeaderboardPage() {
                         <span className="w-8 text-center font-mono text-sm font-bold text-vault-muted">
                           {i + 1}
                         </span>
+                        {agent.avatar ? (
+                          <img src={agent.avatar} alt="" className="h-8 w-8 shrink-0 rounded-full object-cover" />
+                        ) : (
+                          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white/[0.06] text-xs font-bold text-vault-muted">
+                            {(agent.name || agent.wallet)[0].toUpperCase()}
+                          </div>
+                        )}
                         <div className="min-w-0 flex-1">
                           <div className="text-sm font-semibold text-vault-text">
                             {agent.name || truncateWallet(agent.wallet)}
@@ -230,6 +239,13 @@ export default function LeaderboardPage() {
                         <span className="w-8 text-center font-mono text-sm font-bold text-vault-muted">
                           {i + 1}
                         </span>
+                        {user.avatar ? (
+                          <img src={user.avatar} alt="" className="h-8 w-8 shrink-0 rounded-full object-cover" />
+                        ) : (
+                          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white/[0.06] text-xs font-bold text-vault-muted">
+                            {(user.name || user.wallet)[0].toUpperCase()}
+                          </div>
+                        )}
                         <div className="min-w-0 flex-1">
                           <div className="text-sm font-semibold text-vault-text">
                             {user.name || truncateWallet(user.wallet)}
