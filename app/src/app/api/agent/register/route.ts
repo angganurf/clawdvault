@@ -10,6 +10,7 @@ import { rateLimit } from '@/lib/rate-limit';
  * Request body:
  * - wallet: string (required) — Solana wallet address
  * - name: string (optional) — Agent display name
+ * - avatar: string (optional) — Avatar image URL
  *
  * Response:
  * - apiKey: string — API key for authenticated requests
@@ -35,7 +36,7 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json();
-    const { wallet, name } = body;
+    const { wallet, name, avatar } = body;
 
     if (!wallet || typeof wallet !== 'string') {
       return NextResponse.json(
@@ -44,7 +45,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const result = await registerAgent(wallet, name);
+    const result = await registerAgent(wallet, name, avatar);
 
     const isDev = process.env.NODE_ENV === 'development';
     const tweetTemplate = isDev

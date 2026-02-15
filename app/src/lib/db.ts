@@ -659,7 +659,7 @@ export async function getOrCreateUser(wallet: string) {
 }
 
 /** Register an agent (creates User if needed, generates API key + claim code) */
-export async function registerAgent(wallet: string, name?: string) {
+export async function registerAgent(wallet: string, name?: string, avatar?: string) {
   // Get or create the user
   const user = await getOrCreateUser(wallet);
 
@@ -688,11 +688,14 @@ export async function registerAgent(wallet: string, name?: string) {
     },
   });
 
-  // Update user name if provided
-  if (name) {
+  // Update user name/avatar if provided
+  if (name || avatar) {
     await db().user.update({
       where: { id: user.id },
-      data: { name },
+      data: {
+        ...(name && { name }),
+        ...(avatar && { avatar }),
+      },
     });
   }
 
