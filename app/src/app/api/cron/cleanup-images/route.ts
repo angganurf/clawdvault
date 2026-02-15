@@ -1,9 +1,9 @@
 /**
  * Cron: Clean up orphaned token images
  *
- * Scans root-level files in the 'token-images' bucket and deletes any
+ * Scans the 'token-images' bucket and deletes any files
  * whose URL doesn't match a token's image field in the database.
- * Skips the avatars/ subfolder.
+ * Avatars live in a separate 'avatars' bucket so no filtering needed.
  *
  * Usage: GET /api/cron/cleanup-images (with CRON_SECRET auth)
  */
@@ -51,7 +51,7 @@ export async function GET(request: Request) {
       return NextResponse.json({ success: true, message: 'No token images found', deleted: 0 });
     }
 
-    // Filter out folders (like avatars/) — only look at actual files
+    // Filter out folders and hidden files — only look at actual image files
     const imageFiles = files.filter(f => f.id && !f.name.startsWith('.'));
 
     if (imageFiles.length === 0) {
@@ -66,16 +66,7 @@ export async function GET(request: Request) {
     });
     const usedUrls = new Set(tokens.map(t => t.image));
 
-    // Also check user avatars so we don't accidentally delete avatar subfolder contents
-    const users = await db().user.findMany({
-      where: { avatar: { not: null } },
-      select: { avatar: true },
-    });
-    for (const u of users) {
-      if (u.avatar) usedUrls.add(u.avatar);
-    }
-
-    // Find orphans — root-level files not referenced by any token
+    // Find orphans — files not referenced by any token
     const orphans: string[] = [];
     for (const file of imageFiles) {
       const url = `${publicSupabaseUrl}/storage/v1/object/public/${BUCKET}/${file.name}`;
