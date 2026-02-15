@@ -801,6 +801,7 @@ export async function getUsersLeaderboard(options?: {
   }
 
   const users = await db().user.findMany({
+    where: { agent: { is: null } }, // Exclude users who are registered agents
     orderBy,
     take: limit,
   });

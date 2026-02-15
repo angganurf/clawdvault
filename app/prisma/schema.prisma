@@ -141,6 +141,7 @@ model User {
   tokensCreated Int     @default(0) @map("tokens_created")
   totalVolume   Decimal @default(0) @map("total_volume") @db.Decimal(20, 9)
   totalFees     Decimal @default(0) @map("total_fees") @db.Decimal(20, 9)
+  messageCount  Int     @default(0) @map("message_count")
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
@@ -196,26 +197,6 @@ model Config {
   updatedAt DateTime @updatedAt @map("updated_at")
   
   @@map("config")
-}
-
-// ============================================
-// USER PROFILES (wallet-based identity)
-// ============================================
-model UserProfile {
-  id        String   @id @default(uuid())
-  wallet    String   @unique
-  
-  // Display info
-  username  String?  // Custom display name
-  avatar    String?  // Avatar URL
-  
-  // Stats (updated on activity)
-  messageCount Int @default(0) @map("message_count")
-  
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
-  
-  @@map("user_profiles")
 }
 
 // ============================================
