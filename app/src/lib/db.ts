@@ -774,7 +774,7 @@ export async function getAgentsLeaderboard(options?: {
   }
 
   const agents = await db().agent.findMany({
-    where: { twitterVerified: true }, // Only show verified agents
+    where: {}, // Show all registered agents (verified badge shown in UI)
     include: { user: true },
     orderBy,
     take: limit,
