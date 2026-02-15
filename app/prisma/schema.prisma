@@ -178,6 +178,17 @@ model Agent {
 }
 
 // ============================================
+// RATE LIMITS (DB-backed, works across serverless instances)
+// ============================================
+model RateLimit {
+  key       String   @id
+  count     Int      @default(1)
+  expiresAt DateTime @map("expires_at")
+
+  @@map("rate_limits")
+}
+
+// ============================================
 // SITE STATS (atomic counters)
 // ============================================
 model SiteStats {

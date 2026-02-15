@@ -57,18 +57,22 @@ export default function WalletButton() {
 
   const saveProfile = async (updates: { username?: string | null; avatar?: string | null }) => {
     if (!publicKey) return;
-    const profileData = {
-      username: updates.username !== undefined ? updates.username : (username || null),
-      avatar: updates.avatar !== undefined ? updates.avatar : (avatar || null),
-    };
-    const res = await authenticatedPost(wallet, '/api/profile', 'profile', profileData);
-    const data = await res.json();
-    if (data.success) {
-      setUsername(data.profile.username);
-      setAvatar(data.profile.avatar);
-      setAvatarError(false);
+    try {
+      const profileData = {
+        username: updates.username !== undefined ? updates.username : (username || null),
+        avatar: updates.avatar !== undefined ? updates.avatar : (avatar || null),
+      };
+      const res = await authenticatedPost(wallet, '/api/profile', 'profile', profileData);
+      const data = await res.json();
+      if (data.success) {
+        setUsername(data.profile.username);
+        setAvatar(data.profile.avatar);
+        setAvatarError(false);
+      }
+      return data;
+    } catch (err) {
+      console.error('Failed to save profile:', err);
     }
-    return data;
   };
 
   const saveUsername = async () => {

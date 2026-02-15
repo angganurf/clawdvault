@@ -17,8 +17,8 @@ export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
     const sortBy = (searchParams.get('sortBy') as 'volume' | 'tokens' | 'fees') || 'volume';
-    const limit = Math.min(parseInt(searchParams.get('limit') || '25'), 500);
-    const page = Math.max(parseInt(searchParams.get('page') || '1'), 1);
+    const limit = Math.min(parseInt(searchParams.get('limit') || '25') || 25, 500);
+    const page = Math.max(parseInt(searchParams.get('page') || '1') || 1, 1);
 
     if (!['volume', 'tokens', 'fees'].includes(sortBy)) {
       return NextResponse.json(

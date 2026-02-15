@@ -41,7 +41,7 @@ function Avatar({ src, fallback }: { src: string | null; fallback: string }) {
   if (!src || failed) {
     return (
       <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white/[0.06] text-xs font-bold text-vault-muted">
-        {fallback[0].toUpperCase()}
+        {(fallback?.[0] || '?').toUpperCase()}
       </div>
     );
   }

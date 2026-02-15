@@ -695,7 +695,7 @@ export async function registerAgent(wallet: string, name?: string, avatar?: stri
 
   // Generate API key and claim code
   const apiKey = `cv_${generateMint().substring(0, 32)}`;
-  const claimCode = generateMint().substring(0, 8).toUpperCase(); // Short code for tweets
+  const claimCode = generateMint().substring(0, 16).toUpperCase(); // Code for tweets
 
   // Create agent
   const agent = await db().agent.create({

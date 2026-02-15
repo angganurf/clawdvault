@@ -1,19 +1,17 @@
 'use client';
 
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { Token, TokenListResponse } from '@/lib/types';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import Pagination from '@/components/Pagination';
 import { useAllTokens } from '@/lib/supabase-client';
-import { useWallet } from '@/contexts/WalletContext';
 import { useSolPrice } from '@/hooks/useSolPrice';
 
 type FilterTab = 'all' | 'trending' | 'new' | 'near_grad' | 'graduated';
 
 export default function TokensPage() {
-  const { connected, publicKey } = useWallet();
   const [tokens, setTokens] = useState<Token[]>([]);
   const [loading, setLoading] = useState(true);
   const [sort, setSort] = useState('created_at');
@@ -24,26 +22,6 @@ export default function TokensPage() {
   const perPage = 20;
   const totalPages = Math.ceil(totalTokens / perPage);
   const { price: solPrice } = useSolPrice();
-  const [_walletBalances, setWalletBalances] = useState<Record<string, number>>({});
-  const [_balancesLoading, setBalancesLoading] = useState(false);
-
-  const fetchWalletBalances = useCallback(async () => {
-    if (!connected || !publicKey) {
-      setWalletBalances({});
-      return;
-    }
-    setBalancesLoading(true);
-    try {
-      const res = await fetch(`/api/wallet/balances?wallet=${publicKey}`);
-      const data = await res.json();
-      if (data.success) setWalletBalances(data.balances || {});
-    } catch (err) {
-      console.warn('Failed to fetch wallet balances:', err);
-      setWalletBalances({});
-    } finally {
-      setBalancesLoading(false);
-    }
-  }, [connected, publicKey]);
 
   // Reset page when sort or filter changes
   useEffect(() => {
@@ -62,10 +40,6 @@ export default function TokensPage() {
         prev.map((t) => (t.mint === updatedToken.mint ? { ...t, ...updatedToken } : t))
       )
   );
-
-  useEffect(() => {
-    fetchWalletBalances();
-  }, [fetchWalletBalances]);
 
   const fetchTokens = async () => {
     try {

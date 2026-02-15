@@ -119,7 +119,7 @@ export async function POST(req: NextRequest) {
   try {
     // Rate limit: 20 uploads per hour per IP
     const ip = req.headers.get('x-forwarded-for') || req.headers.get('x-real-ip') || 'unknown';
-    if (!rateLimit(ip, 'upload', 20, 60 * 60 * 1000)) {
+    if (!await rateLimit(ip, 'upload', 20, 60 * 60 * 1000)) {
       return NextResponse.json(
         { error: 'Rate limit exceeded. Try again later.' },
         { status: 429 }
@@ -153,7 +153,8 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const ext = file.name.split('.').pop() || 'png';
+    const mimeToExt: Record<string, string> = { 'image/png': 'png', 'image/jpeg': 'jpg', 'image/gif': 'gif', 'image/webp': 'webp' };
+    const ext = mimeToExt[file.type] || file.name.split('.').pop() || 'png';
     const arrayBuffer = await file.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
     const client = getSupabase();

@@ -183,8 +183,7 @@ function formatValue(solAmount: number, solPrice: number | null): string {
   return formatSol(solAmount);
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function getMarketCap(token: any, lastCandle?: { priceUsd?: number | null; priceSol?: number | null }): { sol: number; usd: number | null } {
+function getMarketCap(token: { virtualSolReserves: unknown; virtualTokenReserves: unknown }, lastCandle?: { priceUsd?: number | null; priceSol?: number | null }): { sol: number; usd: number | null } {
   if (lastCandle?.priceUsd) {
     return {
       sol: (lastCandle.priceUsd / (lastCandle.priceSol || 1)) * INITIAL_VIRTUAL_TOKENS,
@@ -200,8 +199,7 @@ function getMarketCap(token: any, lastCandle?: { priceUsd?: number | null; price
   }
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function TokenCard({ token, solPrice, lastCandle, priceChange24h }: { token: any; solPrice: number | null; lastCandle?: { priceUsd?: number | null; priceSol?: number | null }; priceChange24h?: number | null }) {
+function TokenCard({ token, solPrice, lastCandle, priceChange24h }: { token: { mint: string; name: string; symbol: string; image: string | null; graduated: boolean; virtualSolReserves: unknown; virtualTokenReserves: unknown }; solPrice: number | null; lastCandle?: { priceUsd?: number | null; priceSol?: number | null }; priceChange24h?: number | null }) {
   const mcap = getMarketCap(token, lastCandle)
   const formatPriceChange = (change: number | null | undefined) => {
     if (change === null || change === undefined) return null
@@ -330,8 +328,7 @@ export default async function Home() {
               </h3>
               {data.trendingTokens.length > 0 ? (
                 <div className="flex flex-col gap-3">
-                  {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-                  {data.trendingTokens.slice(0, 4).map((token: any) => (
+                  {data.trendingTokens.slice(0, 4).map((token) => (
                     <TokenCard
                       key={token.mint}
                       token={token}
@@ -355,8 +352,7 @@ export default async function Home() {
               </h3>
               {data.recentTokens.length > 0 ? (
                 <div className="flex flex-col gap-3">
-                  {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-                  {data.recentTokens.slice(0, 4).map((token: any) => (
+                  {data.recentTokens.slice(0, 4).map((token) => (
                     <TokenCard
                       key={token.mint}
                       token={token}

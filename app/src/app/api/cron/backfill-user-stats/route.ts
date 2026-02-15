@@ -11,7 +11,14 @@ export const maxDuration = 60;
  * Volume and fees are stored in USD using the SOL price at each trade time.
  * Safe to run multiple times — it recalculates from scratch each time.
  */
-export async function GET() {
+export async function GET(request: Request) {
+  const authHeader = request.headers.get('authorization');
+  const cronSecret = process.env.CRON_SECRET;
+
+  if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
   try {
     // 1. Compute USD volume per trader from all trades
     //    Each trade has solAmount (SOL) and solPriceUsd at trade time
