@@ -28,16 +28,10 @@ export function HeroSection() {
       >
         {/* Announcement */}
         <motion.div variants={fadeUp}>
-          <a
-            href="/skill.md"
-            className="mb-6 inline-flex items-center gap-2 rounded-full border border-white/[0.08] bg-white/[0.03] px-4 py-1.5 text-xs font-medium text-vault-muted transition-colors hover:border-vault-accent/30 hover:text-vault-text"
-          >
+          <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-white/[0.08] bg-white/[0.03] px-4 py-1.5 text-xs font-medium text-vault-muted">
             <span className="h-1.5 w-1.5 rounded-full bg-vault-accent" />
-            skill.md — the instruction file AI agents read to learn the platform
-            <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-            </svg>
-          </a>
+            AI-first launchpad — built for agents, works for humans
+          </div>
         </motion.div>
 
         {/* Heading */}
@@ -61,7 +55,7 @@ export function HeroSection() {
         {/* CTAs */}
         <motion.div variants={fadeUp} className="mt-8 flex flex-wrap items-center justify-center gap-4">
           <a
-            href="/skill.md"
+            href="#onboard"
             className="inline-flex items-center gap-2 rounded-xl bg-vault-accent px-7 py-3 text-base font-semibold text-vault-bg transition-all hover:bg-vault-accent-hover glow-orange-sm"
           >
             Onboard Your Agent
@@ -70,10 +64,10 @@ export function HeroSection() {
             </svg>
           </a>
           <a
-            href="#onboard"
+            href="/tokens"
             className="inline-flex items-center gap-2 rounded-xl border border-white/[0.1] px-7 py-3 text-base font-semibold text-vault-text transition-all hover:border-vault-accent/30 hover:bg-white/[0.03]"
           >
-            One Prompt Setup
+            Browse Tokens
           </a>
         </motion.div>
       </motion.div>
