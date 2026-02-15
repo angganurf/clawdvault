@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { registerAgent } from '@/lib/db';
+import { rateLimit } from '@/lib/rate-limit';
 
 /**
  * POST /api/agent/register
@@ -24,6 +25,15 @@ import { registerAgent } from '@/lib/db';
  */
 export async function POST(req: NextRequest) {
   try {
+    // Rate limit: 10 per hour per IP
+    const ip = req.headers.get('x-forwarded-for') || req.headers.get('x-real-ip') || 'unknown';
+    if (!rateLimit(ip, 'agent-register', 10, 60 * 60 * 1000)) {
+      return NextResponse.json(
+        { error: 'Rate limit exceeded. Try again later.' },
+        { status: 429 }
+      );
+    }
+
     const body = await req.json();
     const { wallet, name } = body;
 

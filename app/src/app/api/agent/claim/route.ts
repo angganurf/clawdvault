@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { claimAgentVerification } from '@/lib/db';
+import { rateLimit } from '@/lib/rate-limit';
 
 /**
  * POST /api/agent/claim
@@ -14,20 +15,18 @@ import { claimAgentVerification } from '@/lib/db';
  * - success: boolean
  * - twitterHandle: string | null — Extracted Twitter handle
  * - verifiedAt: string — Verification timestamp
- *
- * MVP implementation:
- * - Does NOT actually fetch/verify tweet contents (pluggable stub)
- * - Extracts Twitter handle from URL
- * - Marks agent as verified and clears claim code
- *
- * Production TODO:
- * - Fetch tweet via Twitter API or scraping
- * - Verify tweet is top-level (not a reply)
- * - Verify tweet contains exact claim code
- * - Verify tweet author matches extracted handle
  */
 export async function POST(req: NextRequest) {
   try {
+    // Rate limit: 10 per hour per IP
+    const ip = req.headers.get('x-forwarded-for') || req.headers.get('x-real-ip') || 'unknown';
+    if (!rateLimit(ip, 'agent-claim', 10, 60 * 60 * 1000)) {
+      return NextResponse.json(
+        { error: 'Rate limit exceeded. Try again later.' },
+        { status: 429 }
+      );
+    }
+
     const body = await req.json();
     const { apiKey, tweetUrl } = body;
 

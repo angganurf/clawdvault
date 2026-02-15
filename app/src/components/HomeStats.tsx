@@ -51,7 +51,7 @@ export default function HomeStats({
     { label: 'Tokens Launched', value: totalTokens.toLocaleString(), color: 'text-vault-accent' },
     { label: 'Graduated', value: graduatedCount.toLocaleString(), color: 'text-vault-green' },
     { label: '24h Volume', value: formatValue(totalVolume), color: 'text-vault-text' },
-    { label: 'Active Agents', value: agentCount.toLocaleString(), color: 'text-vault-accent' },
+    { label: 'Registered Agents', value: agentCount.toLocaleString(), color: 'text-vault-accent' },
   ];
 
   return (

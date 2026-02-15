@@ -58,9 +58,7 @@ async function getHomeData() {
     const graduatedCount = await db().token.count({
       where: { graduated: true }
     })
-    const agentCount = await db().agent.count({
-      where: { twitterVerified: true }
-    })
+    const agentCount = await db().agent.count()
     const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000)
     const volumeResult = await db().trade.aggregate({
       where: { createdAt: { gte: oneDayAgo } },

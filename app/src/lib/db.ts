@@ -668,19 +668,20 @@ export async function claimAgentVerification(apiKey: string, tweetUrl: string) {
     throw new Error('No claim code found (agent may have been verified already)');
   }
 
-  // TODO: Verify tweet exists and contains claim code (pluggable stub for MVP)
-  // For MVP: just mark as verified and clear claim code
+  // Verify tweet via SocialData API (falls back to stub if no API key)
+  const { verifyClaimTweet } = await import('./twitter');
+  const result = await verifyClaimTweet(tweetUrl, agent.claimCode);
 
-  // Extract Twitter handle from URL (https://twitter.com/handle/status/123 or https://x.com/handle/status/123)
-  const handleMatch = tweetUrl.match(/(?:twitter\.com|x\.com)\/([^\/]+)\/status/);
-  const twitterHandle = handleMatch ? handleMatch[1] : null;
+  if (!result.verified) {
+    throw new Error(result.error || 'Tweet verification failed');
+  }
 
   // Update agent
   const updated = await db().agent.update({
     where: { apiKey },
     data: {
       twitterVerified: true,
-      twitterHandle,
+      twitterHandle: result.handle,
       claimTweetUrl: tweetUrl,
       verifiedAt: new Date(),
       claimCode: null, // Clear claim code after verification
@@ -757,11 +758,9 @@ export async function getUsersLeaderboard(options?: {
   return users;
 }
 
-/** Get total agent count */
+/** Get total agent count (all registered agents, not just verified) */
 export async function getAgentCount() {
-  return db().agent.count({
-    where: { twitterVerified: true }, // Only count verified agents
-  });
+  return db().agent.count();
 }
 
 // Record a trade from on-chain execution
