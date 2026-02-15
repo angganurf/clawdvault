@@ -164,7 +164,7 @@ export default function WalletButton() {
         className="glass-card flex items-center gap-1.5 px-2 py-2 text-sm font-medium transition-colors hover:border-white/10 sm:gap-2 sm:px-3"
       >
         {avatar ? (
-          <img src={avatar} alt="" className="h-5 w-5 shrink-0 rounded-full object-cover" />
+          <img src={avatar} alt="" className="h-5 w-5 shrink-0 rounded-full object-cover" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
         ) : (
           <div className="h-2 w-2 shrink-0 rounded-full bg-vault-green" />
         )}
@@ -188,7 +188,7 @@ export default function WalletButton() {
             <div className="mb-2 text-xs text-vault-muted">Avatar</div>
             <div className="flex items-center gap-3">
               {avatar ? (
-                <img src={avatar} alt="" className="h-10 w-10 rounded-full object-cover border border-white/[0.08]" />
+                <img src={avatar} alt="" className="h-10 w-10 rounded-full object-cover border border-white/[0.08]" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
               ) : (
                 <div className="flex h-10 w-10 items-center justify-center rounded-full border border-white/[0.08] bg-white/[0.03] text-vault-muted">
                   <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>

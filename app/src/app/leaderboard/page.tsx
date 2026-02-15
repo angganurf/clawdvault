@@ -182,7 +182,7 @@ export default function LeaderboardPage() {
                           {i + 1}
                         </span>
                         {agent.avatar ? (
-                          <img src={agent.avatar} alt="" className="h-8 w-8 shrink-0 rounded-full object-cover" />
+                          <img src={agent.avatar} alt="" className="h-8 w-8 shrink-0 rounded-full object-cover" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
                         ) : (
                           <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white/[0.06] text-xs font-bold text-vault-muted">
                             {(agent.name || agent.wallet)[0].toUpperCase()}
@@ -240,7 +240,7 @@ export default function LeaderboardPage() {
                           {i + 1}
                         </span>
                         {user.avatar ? (
-                          <img src={user.avatar} alt="" className="h-8 w-8 shrink-0 rounded-full object-cover" />
+                          <img src={user.avatar} alt="" className="h-8 w-8 shrink-0 rounded-full object-cover" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
                         ) : (
                           <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white/[0.06] text-xs font-bold text-vault-muted">
                             {(user.name || user.wallet)[0].toUpperCase()}
